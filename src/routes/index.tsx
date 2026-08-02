@@ -92,7 +92,11 @@ function MaterialsView() {
   const low = active.filter((m) => m.currentStock <= m.minStock);
   const inventoryValue = active.reduce((s, m) => s + m.currentStock * m.costPerUnit, 0);
 
+  // selalu pakai versi terbaru dari DB agar angka stok di dialog tidak basi
+  const selectedLive = selected ? (materials.find((m) => m.id === selected.id) ?? selected) : null;
+
   const openForm = (m: RawMaterial | null) => {
+
     setSelected(m);
     setFormOpen(true);
   };
