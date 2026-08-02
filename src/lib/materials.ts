@@ -104,18 +104,20 @@ export async function recordMovement(params: {
     }
     await db.materials.update(mat.id, patch);
 
-    await db.movements.add({
+    const movement: StockMovement = {
       id: uid(),
       materialId: mat.id,
       type: params.type,
       qty,
       balanceAfter,
-      unitCost: params.unitCost,
       refType: params.refType ?? "manual",
-      refId: params.refId,
-      note: params.note,
       createdAt: nowISO(),
-    });
+    };
+    if (params.unitCost !== undefined) movement.unitCost = params.unitCost;
+    if (params.refId !== undefined) movement.refId = params.refId;
+    if (params.note !== undefined) movement.note = params.note;
+    await db.movements.add(movement);
+
 
     return balanceAfter;
   });
