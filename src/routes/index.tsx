@@ -253,9 +253,10 @@ function MaterialsView() {
         </Table>
       </div>
 
-      <MaterialFormDialog open={formOpen} onOpenChange={setFormOpen} material={selected} />
-      <StockMovementDialog open={moveOpen} onOpenChange={setMoveOpen} material={selected} />
-      <StockHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} material={selected} />
+      <MaterialFormDialog open={formOpen} onOpenChange={setFormOpen} material={selectedLive} />
+      <StockMovementDialog open={moveOpen} onOpenChange={setMoveOpen} material={selectedLive} />
+      <StockHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} material={selectedLive} />
+
     </AppShell>
   );
 }
