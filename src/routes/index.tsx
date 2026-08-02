@@ -47,8 +47,8 @@ export const Route = createFileRoute("/")({
 function BahanBakuPage() {
   const [ready, setReady] = useState(false);
 
-  useMemo(() => {
-    if (typeof window === "undefined") return;
+  // Dexie hanya tersedia di browser; seed dijalankan sekali saat DB kosong.
+  useEffect(() => {
     seedIfEmpty()
       .then(() => setReady(true))
       .catch((e) => {
@@ -57,8 +57,16 @@ function BahanBakuPage() {
       });
   }, []);
 
-  return ready ? <MaterialsView /> : <AppShell title="Bahan Baku"><p className="text-sm text-muted-foreground">Memuat data lokal…</p></AppShell>;
+  if (!ready) {
+    return (
+      <AppShell title="Bahan Baku">
+        <p className="text-sm text-muted-foreground">Memuat data lokal…</p>
+      </AppShell>
+    );
+  }
+  return <MaterialsView />;
 }
+
 
 function MaterialsView() {
   const [query, setQuery] = useState("");
