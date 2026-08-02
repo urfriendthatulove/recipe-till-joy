@@ -54,8 +54,15 @@ export function MaterialFormDialog({ open, onOpenChange, material }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return toast.error("Nama bahan wajib diisi");
-    if (costValue < 0) return toast.error("Harga tidak boleh negatif");
+    if (!name.trim()) {
+      toast.error("Nama bahan wajib diisi");
+      return;
+    }
+    if (costValue < 0) {
+      toast.error("Harga tidak boleh negatif");
+      return;
+    }
+
 
     const payload: MaterialInput = {
       name,
