@@ -53,8 +53,14 @@ export function MenuFormDialog({ open, onOpenChange, menu, categories }: Props) 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return toast.error("Nama menu wajib diisi");
-    if (!categoryId) return toast.error("Pilih kategori dulu");
+    if (!name.trim()) {
+      toast.error("Nama menu wajib diisi");
+      return;
+    }
+    if (!categoryId) {
+      toast.error("Pilih kategori dulu");
+      return;
+    }
 
     const payload: MenuInput = {
       code,
