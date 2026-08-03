@@ -28,7 +28,7 @@ export async function createMenu(input: MenuInput) {
 
 export async function updateMenu(id: string, input: MenuInput) {
   await db.menus.update(id, {
-    code: input.code?.trim().toUpperCase() || undefined,
+    code: input.code?.trim().toUpperCase() ?? "",
     name: input.name.trim(),
     categoryId: input.categoryId,
     price: input.price,
