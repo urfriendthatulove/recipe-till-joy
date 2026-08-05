@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as KasirRouteImport } from './routes/kasir'
+import { Route as LaporanRouteImport } from './routes/laporan'
 import { Route as MenuRouteImport } from './routes/menu'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const KasirRoute = KasirRouteImport.update({
   path: '/kasir',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LaporanRoute = LaporanRouteImport.update({
+  id: '/laporan',
+  path: '/laporan',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MenuRoute = MenuRouteImport.update({
   id: '/menu',
   path: '/menu',
@@ -32,30 +38,34 @@ const MenuRoute = MenuRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/kasir': typeof KasirRoute
+  '/laporan': typeof LaporanRoute
   '/menu': typeof MenuRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/kasir': typeof KasirRoute
+  '/laporan': typeof LaporanRoute
   '/menu': typeof MenuRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/kasir': typeof KasirRoute
+  '/laporan': typeof LaporanRoute
   '/menu': typeof MenuRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/kasir' | '/menu'
+  fullPaths: '/' | '/kasir' | '/laporan' | '/menu'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/kasir' | '/menu'
-  id: '__root__' | '/' | '/kasir' | '/menu'
+  to: '/' | '/kasir' | '/laporan' | '/menu'
+  id: '__root__' | '/' | '/kasir' | '/laporan' | '/menu'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   KasirRoute: typeof KasirRoute
+  LaporanRoute: typeof LaporanRoute
   MenuRoute: typeof MenuRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KasirRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/laporan': {
+      id: '/laporan'
+      path: '/laporan'
+      fullPath: '/laporan'
+      preLoaderRoute: typeof LaporanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/menu': {
       id: '/menu'
       path: '/menu'
@@ -88,18 +105,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   KasirRoute: KasirRoute,
+  LaporanRoute: LaporanRoute,
   MenuRoute: MenuRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
