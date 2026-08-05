@@ -8,7 +8,7 @@ const NAV = [
   { to: "/", label: "Bahan Baku", icon: Package, ready: true },
   { to: "/menu", label: "Menu & Resep", icon: BookOpen, ready: true },
   { to: "/kasir", label: "Kasir", icon: ShoppingCart, ready: true },
-  { to: "/laporan", label: "Laporan", icon: BarChart3, ready: false },
+  { to: "/laporan", label: "Laporan", icon: BarChart3, ready: true },
 ] as const;
 
 export function AppShell({
