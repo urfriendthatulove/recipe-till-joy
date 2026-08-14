@@ -75,6 +75,7 @@ function MenuPage() {
 function MenuView() {
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [formOpen, setFormOpen] = useState(false);
   const [recipeOpen, setRecipeOpen] = useState(false);
   const [selected, setSelected] = useState<MenuItem | null>(null);
@@ -95,6 +96,7 @@ function MenuView() {
     const q = query.trim().toLowerCase();
     return menus
       .filter((m) => (showArchived ? m.isActive === 0 : m.isActive === 1))
+      .filter((m) => (selectedCategory === "all" ? true : m.categoryId === selectedCategory))
       .filter(
         (m) =>
           !q ||
@@ -112,7 +114,7 @@ function MenuView() {
         const cb = catById.get(b.menu.categoryId)?.sortOrder ?? 999;
         return ca - cb || a.menu.name.localeCompare(b.menu.name, "id");
       });
-  }, [menus, recipes, materialById, catById, query, showArchived]);
+  }, [menus, recipes, materialById, catById, query, showArchived, selectedCategory]);
 
   const activeMenus = menus.filter((m) => m.isActive === 1);
   const withoutRecipe = activeMenus.filter(
