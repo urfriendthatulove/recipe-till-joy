@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Archive, ChefHat, Pencil, Plus, Search, Undo2 } from "lucide-react";
+import { Archive, ChefHat, Filter, Pencil, Plus, Search, Undo2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -10,6 +10,13 @@ import { RecipeSheet } from "@/components/menu/RecipeSheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -68,6 +75,7 @@ function MenuPage() {
 function MenuView() {
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [formOpen, setFormOpen] = useState(false);
   const [recipeOpen, setRecipeOpen] = useState(false);
   const [selected, setSelected] = useState<MenuItem | null>(null);
@@ -88,6 +96,7 @@ function MenuView() {
     const q = query.trim().toLowerCase();
     return menus
       .filter((m) => (showArchived ? m.isActive === 0 : m.isActive === 1))
+      .filter((m) => (selectedCategory === "all" ? true : m.categoryId === selectedCategory))
       .filter(
         (m) =>
           !q ||
@@ -105,7 +114,7 @@ function MenuView() {
         const cb = catById.get(b.menu.categoryId)?.sortOrder ?? 999;
         return ca - cb || a.menu.name.localeCompare(b.menu.name, "id");
       });
-  }, [menus, recipes, materialById, catById, query, showArchived]);
+  }, [menus, recipes, materialById, catById, query, showArchived, selectedCategory]);
 
   const activeMenus = menus.filter((m) => m.isActive === 1);
   const withoutRecipe = activeMenus.filter(
@@ -161,7 +170,7 @@ function MenuView() {
       ) : null}
 
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <div className="relative min-w-56 flex-1">
+        <div className="relative min-w-44 flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
@@ -169,6 +178,32 @@ function MenuView() {
             placeholder="Cari menu, kode, atau kategori…"
             className="pl-9"
           />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="size-4 text-muted-foreground" />
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Semua kategori" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua kategori</SelectItem>
+              {categories.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedCategory !== "all" && (
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Reset filter kategori"
+              onClick={() => setSelectedCategory("all")}
+            >
+              <X className="size-4" />
+            </Button>
+          )}
         </div>
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <Switch checked={showArchived} onCheckedChange={setShowArchived} />
