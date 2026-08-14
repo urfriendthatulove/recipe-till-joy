@@ -1,0 +1,105 @@
+/**
+ * Data awal menu (85 item) — dipakai sebagai seed default halaman "Menu & Resep".
+ * `recipe` berisi catatan resep berbentuk teks; null artinya menu belum punya resep.
+ */
+export interface MenuSeedRow {
+  id: string;
+  name: string;
+  code: string;
+  category: string;
+  price: number;
+  cost: number;
+  recipe: string | null;
+  is_archived: boolean;
+}
+
+export const MENU_DATA: MenuSeedRow[] = [
+  { id: "1", name: "Avocado Coffee", code: "BEV023", category: "COFFEE", price: 35000, cost: 0, recipe: null, is_archived: false },
+  { id: "2", name: "MINERAL WATER 33OML", code: "BEV049", category: "MINERAL WATER", price: 8000, cost: 0, recipe: null, is_archived: false },
+  { id: "3", name: "NASI PUTIH", code: "FOD001", category: "NASI", price: 12000, cost: 0, recipe: null, is_archived: false },
+  { id: "4", name: "NASI GORENG TELUR RAKYAT", code: "FOD002", category: "Nasi Goreng", price: 18000, cost: 0, recipe: null, is_archived: false },
+  { id: "5", name: "NASI GORENG BAKSO", code: "FOD003", category: "Nasi Goreng", price: 20000, cost: 0, recipe: null, is_archived: false },
+  { id: "6", name: "NASI GORENG SOSIS", code: "FOD004", category: "Nasi Goreng", price: 20000, cost: 0, recipe: null, is_archived: false },
+  { id: "7", name: "NASI GORENG AYAM", code: "FOD005", category: "Nasi Goreng", price: 23000, cost: 0, recipe: null, is_archived: false },
+  { id: "8", name: "NASI GORENG SPESIAL", code: "FOD006", category: "Nasi Goreng", price: 25000, cost: 0, recipe: null, is_archived: false },
+  { id: "9", name: "MIE GORENG SPESIAL", code: "FOD007", category: "Aneka Mie", price: 25000, cost: 0, recipe: null, is_archived: false },
+  { id: "10", name: "INDOMIE GORENG", code: "FOD008", category: "Aneka Mie", price: 15000, cost: 0, recipe: null, is_archived: false },
+  { id: "11", name: "INDOMIE REBUS", code: "FOD009", category: "Aneka Mie", price: 15000, cost: 0, recipe: null, is_archived: false },
+  { id: "12", name: "TELUR DADAR / CEPLOK", code: "FOD010", category: "ADD ON", price: 5000, cost: 0, recipe: null, is_archived: false },
+  { id: "13", name: "KERUPUK", code: "FOD011", category: "ADD ON", price: 3000, cost: 0, recipe: null, is_archived: false },
+  { id: "14", name: "TAHU / TEMPE GORENG (ISI 3)", code: "FOD012", category: "SNACK", price: 10000, cost: 0, recipe: null, is_archived: false },
+  { id: "15", name: "KENTANG GORENG", code: "FOD013", category: "SNACK", price: 18000, cost: 0, recipe: null, is_archived: false },
+  { id: "16", name: "SOSIS GORENG", code: "FOD014", category: "SNACK", price: 18000, cost: 0, recipe: null, is_archived: false },
+  { id: "17", name: "MIX PLATTER (KENTANG, SOSIS, NUGGET)", code: "FOD015", category: "SNACK", price: 28000, cost: 0, recipe: null, is_archived: false },
+  { id: "18", name: "ROTI BAKAR COKLAT KEJU", code: "FOD016", category: "SNACK", price: 20000, cost: 0, recipe: null, is_archived: false },
+  { id: "19", name: "ROTI BAKAR SANGKURIANG", code: "FOD017", category: "SNACK", price: 22000, cost: 0, recipe: null, is_archived: false },
+  { id: "20", name: "PISANG GORENG COKLAT KEJU", code: "FOD018", category: "SNACK", price: 20000, cost: 0, recipe: null, is_archived: false },
+  { id: "21", name: "PISANG GORENG ORIGINAL", code: "FOD019", category: "SNACK", price: 18000, cost: 0, recipe: null, is_archived: false },
+  { id: "22", name: "DIMSUM AYAM (ISI 4)", code: "FOD020", category: "SNACK", price: 20000, cost: 0, recipe: null, is_archived: false },
+  { id: "23", name: "CIMOL BOOTJIN", code: "FOD021", category: "SNACK", price: 18000, cost: 0, recipe: null, is_archived: false },
+  { id: "24", name: "CIRENG BUMBU RUJAK", code: "FOD022", category: "SNACK", price: 18000, cost: 0, recipe: null, is_archived: false },
+  { id: "25", name: "LUMPANGBANAG (LUMPIA ABANG)", code: "FOD023", category: "SNACK", price: 18000, cost: 0, recipe: null, is_archived: false },
+  { id: "26", name: "SINGKONG GORENG MEKAR", code: "FOD024", category: "SNACK", price: 18000, cost: 0, recipe: null, is_archived: false },
+  { id: "27", name: "TAHU CABE GARAM", code: "FOD025", category: "SNACK", price: 18000, cost: 0, recipe: null, is_archived: false },
+  { id: "28", name: "TEMPE MENDOAN (ISI 4)", code: "FOD026", category: "SNACK", price: 18000, cost: 0, recipe: null, is_archived: false },
+  { id: "29", name: "PANCAKE ICE CREAM", code: "FOD027", category: "DESSERT", price: 25000, cost: 0, recipe: null, is_archived: false },
+  { id: "30", name: "WAFFLE ICE CREAM", code: "FOD028", category: "DESSERT", price: 25000, cost: 0, recipe: null, is_archived: false },
+  { id: "31", name: "ICE CREAM SINGLE SCOOP", code: "FOD029", category: "DESSERT", price: 12000, cost: 0, recipe: null, is_archived: false },
+  { id: "32", name: "ES TEH MANIS", code: "BEV001", category: "TEA", price: 8000, cost: 0, recipe: null, is_archived: false },
+  { id: "33", name: "TEH MANIS HANGAT", code: "BEV002", category: "TEA", price: 8000, cost: 0, recipe: null, is_archived: false },
+  { id: "34", name: "LEMON TEA ICE", code: "BEV003", category: "TEA", price: 15000, cost: 0, recipe: null, is_archived: false },
+  { id: "35", name: "LYCHEE TEA ICE", code: "BEV004", category: "TEA", price: 18000, cost: 0, recipe: null, is_archived: false },
+  { id: "36", name: "PEACH TEA ICE", code: "BEV005", category: "TEA", price: 18000, cost: 0, recipe: null, is_archived: false },
+  { id: "37", name: "THAI TEA ICE", code: "BEV006", category: "TEA", price: 18000, cost: 0, recipe: null, is_archived: false },
+  { id: "38", name: "GREEN TEA LATTE ICE", code: "BEV007", category: "NON COFFEE", price: 22000, cost: 0, recipe: null, is_archived: false },
+  { id: "39", name: "CHOCOLATE ICE", code: "BEV008", category: "NON COFFEE", price: 22000, cost: 0, recipe: null, is_archived: false },
+  { id: "40", name: "RED VELVET ICE", code: "BEV009", category: "NON COFFEE", price: 22000, cost: 0, recipe: null, is_archived: false },
+  { id: "41", name: "TARO ICE", code: "BEV010", category: "NON COFFEE", price: 22000, cost: 0, recipe: null, is_archived: false },
+  { id: "42", name: "AIR MINERAL 600ML", code: "BEV011", category: "MINERAL WATER", price: 7000, cost: 0, recipe: null, is_archived: false },
+  { id: "43", name: "ES BATU (EXTRA)", code: "BEV012", category: "ADD ON", price: 2000, cost: 0, recipe: null, is_archived: false },
+  { id: "44", name: "EXPRESSO SINGLE", code: "BEV013", category: "COFFEE", price: 12000, cost: 0, recipe: null, is_archived: false },
+  { id: "45", name: "AMERICANO ICE", code: "BEV014", category: "COFFEE", price: 18000, cost: 0, recipe: null, is_archived: false },
+  { id: "46", name: "KOPI SUSU RAKYAT (GULA AREN)", code: "BEV015", category: "COFFEE", price: 20000, cost: 0, recipe: null, is_archived: false },
+  { id: "47", name: "CAPPUCCINO ICE", code: "BEV016", category: "COFFEE", price: 22000, cost: 0, recipe: null, is_archived: false },
+  { id: "48", name: "CAFE LATTE ICE", code: "BEV017", category: "COFFEE", price: 22000, cost: 0, recipe: null, is_archived: false },
+  { id: "49", name: "Kesukaan Rakyat (Salted Aren)", code: "SGNTR001", category: "Signature Drinks", price: 21739, cost: 0, recipe: "Kopi Espresso 1shot/30ml, Salted Caramel 10ml, Gula Aren 10ml, Mix Milk 100-120ml, Es Batu 1scoop (Less Sugar: 5ml Salted + 5ml Aren)", is_archived: false },
+  { id: "50", name: "Arennya Rakyat (Gula Aren)", code: "SGNTR002", category: "Signature Drinks", price: 21739, cost: 0, recipe: "Kopi Espresso 1shot/30ml, Gula Aren 20ml, Mix Milk 100-120ml, Es Batu 1scoop (Less Sugar: 15ml Aren)", is_archived: false },
+  { id: "51", name: "Silky Aren", code: "SGNTR003", category: "Signature Drinks", price: 25217, cost: 0, recipe: "Kopi Espresso 1shot/30ml, Gula Aren 20ml, Evaporasi 100-120ml, Es Batu 1scoop (Less Sugar: 15ml Aren)", is_archived: false },
+  { id: "52", name: "Banana Strawberry Smoothie", code: "FRT001", category: "Fruit Series", price: 30435, cost: 0, recipe: "Banana 50gr, Strawberry 40gr, Yogurt 20gr, Fresh Milk 120gr, Simple Syrup 20ml, Ice Cube 2cube (Less Sugar: 10ml Simple Syrup)", is_archived: false },
+  { id: "53", name: "Seasonal Juice", code: "FRT002", category: "Fruit Series", price: 27826, cost: 0, recipe: "Fruit 120gr, Air 70-100ml, Lime peras 2-3 potong, Simple Syrup 20ml, Ice Cube 1scoop (Less Sugar: 10ml Simple Syrup)", is_archived: false },
+  { id: "54", name: "Caramel Machiatto", code: "SGNTR004", category: "Signature Drinks", price: 26087, cost: 0, recipe: "Kopi Espresso 1shot/30ml, Salted Caramel 20ml, Mix Milk 100-120ml, Es Batu 1scoop, Cream Machiatto 15gr, Garnish 5gr (Less Sugar: 10ml Salted)", is_archived: false },
+  { id: "55", name: "Dolce Latte", code: "SGNTR005", category: "Signature Drinks", price: 24348, cost: 0, recipe: "Kopi Espresso 1shot/30ml, SKM 25ml, Mix Milk 100-120ml, Es Batu 1scoop (Less Sugar: 15ml SKM)", is_archived: false },
+  { id: "56", name: "Espresso", code: "CLSC001", category: "Classic Coffee", price: 13913, cost: 0, recipe: "Kopi 17,5-18,5gr | Waktu ekstraksi 30-35 detik | Yield 60-70ml", is_archived: false },
+  { id: "57", name: "Americano", code: "CLSC002", category: "Classic Coffee", price: 15652, cost: 0, recipe: "Kopi Espresso 1shot/30ml, Air 150-180ml, Simple Syrup 20ml, Es Batu 1scoop (Less Sugar: 10ml Simple Syrup)", is_archived: false },
+  { id: "58", name: "Long Black", code: "CLSC003", category: "Classic Coffee", price: 19130, cost: 0, recipe: "Kopi Espresso Double Ristretto, Air 130ml, Simple Syrup 20ml, Es Batu 1scoop (Less Sugar: 10ml Simple Syrup)", is_archived: false },
+  { id: "59", name: "Latte", code: "CLSC004", category: "Classic Coffee", price: 21739, cost: 0, recipe: "Kopi Espresso 1shot/30ml, Mix Milk 120-150ml, Es Batu 1scoop", is_archived: false },
+  { id: "60", name: "Cappuccino", code: "CLSC005", category: "Classic Coffee", price: 21739, cost: 0, recipe: "Kopi Espresso 1shot/30ml, Mix Milk 120-150ml, Es Batu 1scoop, Foam Milk, Bubuk Coklat 2gr", is_archived: false },
+  { id: "61", name: "Piccolo", code: "CLSC006", category: "Classic Coffee", price: 19130, cost: 0, recipe: "Kopi Espresso 1shot/20ml, Fresh Milk 100ml", is_archived: false },
+  { id: "62", name: "Mochaccino", code: "CLSC007", category: "Classic Coffee", price: 24348, cost: 0, recipe: "Kopi Espresso 1shot/30ml, Powder Chocolate 20gr, Mix Milk 100-120ml, Es Batu 1scoop", is_archived: false },
+  { id: "63", name: "Milo Dinosaurus", code: "NON001", category: "Non-Coffee & Kids", price: 21739, cost: 0, recipe: "Milo Powder 25gr, Fresh Milk 100-120ml, SKM 10ml, Es Batu 1scoop, Topping Milo Powder 10gr (Less Sugar: tanpa SKM)", is_archived: false },
+  { id: "64", name: "Matcha Latte", code: "NON002", category: "Non-Coffee & Kids", price: 23478, cost: 0, recipe: "Matcha Powder 20gr, Fresh Milk 100-120ml, Simple Syrup 15ml, Es Batu 1scoop (Less Sugar: 10ml Simple Syrup)", is_archived: false },
+  { id: "65", name: "Chocolate Classic", code: "NON003", category: "Non-Coffee & Kids", price: 23478, cost: 0, recipe: "Chocolate Powder 25gr, Mix Milk 100-120ml, SKM 10ml, Es Batu 1scoop (Less Sugar: tanpa SKM)", is_archived: false },
+  { id: "66", name: "Taro Milky", code: "NON004", category: "Non-Coffee & Kids", price: 21739, cost: 0, recipe: "Taro Powder 20gr, Mix Milk 100-120ml, Simple Syrup 10ml, Es Batu 1scoop (Less Sugar: tanpa Simple Syrup)", is_archived: false },
+  { id: "67", name: "Red Velvet Cream", code: "NON005", category: "Non-Coffee & Kids", price: 21739, cost: 0, recipe: "Red Velvet Powder 20gr, Mix Milk 100-120ml, Simple Syrup 10ml, Es Batu 1scoop (Less Sugar: tanpa Simple Syrup)", is_archived: false },
+  { id: "68", name: "Lychee Tea", code: "TEA001", category: "Tea Series", price: 17391, cost: 0, recipe: "Teh 120ml, Syrup Lychee 20ml, Buah Lychee 2pcs, Es Batu 1scoop (Less Sugar: 10ml Syrup)", is_archived: false },
+  { id: "69", name: "Lemon Tea", code: "TEA002", category: "Tea Series", price: 15652, cost: 0, recipe: "Teh 120ml, Lemon Juice 15ml, Simple Syrup 20ml, Es Batu 1scoop, Slice Lemon 1pcs (Less Sugar: 10ml Syrup)", is_archived: false },
+  { id: "70", name: "Peach Tea", code: "TEA003", category: "Tea Series", price: 17391, cost: 0, recipe: "Teh 120ml, Syrup Peach 20ml, Es Batu 1scoop (Less Sugar: 10ml Syrup)", is_archived: false },
+  { id: "71", name: "Regular Tea", code: "TEA004", category: "Tea Series", price: 8696, cost: 0, recipe: "Teh 150ml, Simple Syrup 15ml, Es Batu 1scoop (Less Sugar: 5ml Syrup)", is_archived: false },
+  { id: "72", name: "Thai Tea", code: "TEA005", category: "Tea Series", price: 17391, cost: 0, recipe: "Teh Thai 100ml, Evaporasi 30ml, SKM 20ml, Es Batu 1scoop (Less Sugar: 10ml SKM)", is_archived: false },
+  { id: "73", name: "Nasi Telor w/ Chicken", code: "RCE001", category: "Rice & Savory", price: 26087, cost: 0, recipe: "Nasi 180gr, Telur 1butir, Ayam Popcorn 60gr, Bumbu Racik 10gr, Minyak 15ml, Daun Bawang 5gr", is_archived: false },
+  { id: "74", name: "Nasi Telor w/ Beef", code: "RCE002", category: "Rice & Savory", price: 30435, cost: 0, recipe: "Nasi 180gr, Telur 1butir, Daging Sapi Slice 50gr, Bumbu Racik 10gr, Minyak 15ml, Daun Bawang 5gr", is_archived: false },
+  { id: "75", name: "Nasi Goreng Ayam", code: "RCE003", category: "Rice & Savory", price: 24348, cost: 0, recipe: "Nasi 200gr, Ayam Suwir 40gr, Telur 1butir, Bumbu Nasgor 15gr, Kecap 10ml, Acar & Kerupuk 1porsi", is_archived: false },
+  { id: "76", name: "Mie Goreng Jawa", code: "NDL001", category: "Noodle Series", price: 24348, cost: 0, recipe: "Mie Basah 120gr, Telur 1butir, Sayur Sawit 30gr, Ayam Suwir 30gr, Bumbu Jawa 15gr, Kecap 10ml", is_archived: false },
+  { id: "77", name: "Singkong Goreng Keju", code: "SNK001", category: "Snack Corner", price: 17391, cost: 0, recipe: "Singkong Potong 150gr, Keju Parut 20gr, SKM 10ml, Minyak Goreng 200ml (pengisian ulang)", is_archived: false },
+  { id: "78", name: "French Fries", code: "SNK002", category: "Snack Corner", price: 17391, cost: 0, recipe: "Kentang Shoestring 150gr, Bumbu Tabur 5gr, Saus Sambal 20gr", is_archived: false },
+  { id: "79", name: "Cireng Bumbu Rujak", code: "SNK003", category: "Snack Corner", price: 17391, cost: 0, recipe: "Adonan Cireng 10pcs (120gr), Bumbu Rujak 30gr", is_archived: false },
+  { id: "80", name: "Kopi 15rb - Arennya Rakyat", code: "15RB001", category: "Kopi 15rb", price: 15000, cost: 0, recipe: "Kopi Espresso 1shot/20ml, Gula Aren 15ml, Mix Milk 100ml, Es Batu 1scoop", is_archived: false },
+  { id: "81", name: "Kopi 15rb - Kesukaan Rakyat", code: "15RB002", category: "Kopi 15rb", price: 15000, cost: 0, recipe: "Kopi Espresso 1shot/20ml, Salted Caramel 8ml, Gula Aren 8ml, Mix Milk 100ml, Es Batu 1scoop", is_archived: false },
+  { id: "82", name: "Kesukaan Rakyat 15RB", code: "15RB003", category: "Kopi 15rb", price: 15000, cost: 0, recipe: "Kopi Espresso 1shot/20ml, Salted Caramel 8ml, Gula Aren 8ml, Mix Milk 100ml, Es Batu 1scoop", is_archived: false },
+  { id: "83", name: "Kopi 15rb - Americano", code: "15RB004", category: "Kopi 15rb", price: 15000, cost: 0, recipe: "Kopi Espresso 1shot/20ml, Air 150ml, Simple Syrup 15ml, Es Batu 1scoop", is_archived: false },
+  { id: "84", name: "Kopi 15rb - Cafe Latte", code: "15RB005", category: "Kopi 15rb", price: 15000, cost: 0, recipe: "Kopi Espresso 1shot/20ml, Fresh Milk 120ml, Es Batu 1scoop", is_archived: false },
+  { id: "85", name: "Kopi 15rb - Chocolate", code: "15RB006", category: "Kopi 15rb", price: 15000, cost: 0, recipe: "Chocolate Powder 20gr, Fresh Milk 100ml, SKM 10ml, Es Batu 1scoop", is_archived: false },
+];
+
+/** Urutan kategori mengikuti kemunculan pertama pada data. */
+export const MENU_CATEGORIES: string[] = Array.from(new Set(MENU_DATA.map((m) => m.category)));
