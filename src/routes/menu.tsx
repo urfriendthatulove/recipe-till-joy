@@ -170,7 +170,7 @@ function MenuView() {
       ) : null}
 
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <div className="relative min-w-56 flex-1">
+        <div className="relative min-w-44 flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
@@ -178,6 +178,32 @@ function MenuView() {
             placeholder="Cari menu, kode, atau kategori…"
             className="pl-9"
           />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="size-4 text-muted-foreground" />
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Semua kategori" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua kategori</SelectItem>
+              {categories.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedCategory !== "all" && (
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Reset filter kategori"
+              onClick={() => setSelectedCategory("all")}
+            >
+              <X className="size-4" />
+            </Button>
+          )}
         </div>
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <Switch checked={showArchived} onCheckedChange={setShowArchived} />
