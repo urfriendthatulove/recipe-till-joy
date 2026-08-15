@@ -5,6 +5,10 @@ export interface MaterialInput {
   unit: RawMaterial["unit"];
   minStock: number;
   costPerUnit: number;
+  /** harga beli per kemasan */
+  purchasePrice?: number;
+  /** jumlah/isi per kemasan dalam satuan dasar */
+  packSize?: number;
   /** hanya dipakai saat membuat bahan baru: stok awal */
   openingStock?: number;
 }
@@ -22,6 +26,8 @@ export async function createMaterial(input: MaterialInput) {
       currentStock: opening,
       minStock: input.minStock,
       costPerUnit: input.costPerUnit,
+      ...(input.purchasePrice !== undefined ? { purchasePrice: input.purchasePrice } : {}),
+      ...(input.packSize !== undefined ? { packSize: input.packSize } : {}),
       isActive: 1,
       createdAt: ts,
       updatedAt: ts,
@@ -50,6 +56,8 @@ export async function updateMaterial(id: string, input: MaterialInput) {
     unit: input.unit,
     minStock: input.minStock,
     costPerUnit: input.costPerUnit,
+    ...(input.purchasePrice !== undefined ? { purchasePrice: input.purchasePrice } : {}),
+    ...(input.packSize !== undefined ? { packSize: input.packSize } : {}),
     updatedAt: nowISO(),
   });
 }

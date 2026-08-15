@@ -37,7 +37,8 @@ export function MaterialFormDialog({ open, onOpenChange, material }: Props) {
   const [name, setName] = useState("");
   const [unit, setUnit] = useState<BaseUnit>("ml");
   const [minStock, setMinStock] = useState("");
-  const [cost, setCost] = useState("");
+  const [buyPrice, setBuyPrice] = useState("");
+  const [packSize, setPackSize] = useState("");
   const [opening, setOpening] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -46,11 +47,14 @@ export function MaterialFormDialog({ open, onOpenChange, material }: Props) {
     setName(material?.name ?? "");
     setUnit(material?.unit ?? "ml");
     setMinStock(material ? String(material.minStock) : "");
-    setCost(material ? String(material.costPerUnit) : "");
+    setBuyPrice(material?.purchasePrice ? String(material.purchasePrice) : "");
+    setPackSize(material?.packSize ? String(material.packSize) : "");
     setOpening("");
   }, [open, material]);
 
-  const costValue = parseLocaleNumber(cost);
+  const buyValue = parseLocaleNumber(buyPrice);
+  const packValue = parseLocaleNumber(packSize);
+  const costValue = packValue > 0 ? buyValue / packValue : (material?.costPerUnit ?? 0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -69,6 +73,8 @@ export function MaterialFormDialog({ open, onOpenChange, material }: Props) {
       unit,
       minStock: parseLocaleNumber(minStock),
       costPerUnit: costValue,
+      purchasePrice: buyValue,
+      packSize: packValue,
     };
 
     setSaving(true);
