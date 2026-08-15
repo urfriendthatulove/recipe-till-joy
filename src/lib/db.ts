@@ -136,6 +136,7 @@ class QuinosDB extends Dexie {
     };
     this.version(1).stores(schema);
     this.version(2).stores(schema);
+    this.version(3).stores(schema);
   }
 }
 
