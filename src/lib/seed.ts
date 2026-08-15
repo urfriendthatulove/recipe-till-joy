@@ -1,3 +1,5 @@
+import { MENU_CATEGORIES, MENU_DATA } from "@/data/menuData";
+
 import { db, nowISO, uid, type MenuCategory, type MenuItem, type RawMaterial } from "./db";
 
 /**
@@ -100,29 +102,7 @@ export async function seedIfEmpty() {
     updatedAt: ts,
   }));
 
-  const categories: MenuCategory[] = CATEGORIES.map((name, i) => ({
-    id: uid(),
-    name,
-    sortOrder: i,
-  }));
-  const catByName = new Map(categories.map((c) => [c.name, c.id]));
-
-  const menus: MenuItem[] = MENUS.map(([code, name, cat, price]) => ({
-    id: uid(),
-    code,
-    name,
-    categoryId: catByName.get(cat)!,
-    price,
-    isActive: 1,
-    createdAt: ts,
-    updatedAt: ts,
-  }));
-
-  await db.transaction("rw", db.materials, db.categories, db.menus, async () => {
-    await db.materials.bulkAdd(materials);
-    await db.categories.bulkAdd(categories);
-    await db.menus.bulkAdd(menus);
-  });
+  await db.materials.bulkAdd(materials);
 
   return true;
 }
