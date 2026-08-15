@@ -107,7 +107,13 @@ function MenuView() {
       .map((m) => {
         const recipeCount = recipes.filter((r) => r.menuItemId === m.id).length;
         const cost = computeCost(m, recipes, materialById);
-        return { menu: m, recipeCount, cost, margin: marginPercent(m.price, cost) };
+        return {
+          menu: m,
+          recipeCount,
+          hasRecipe: recipeCount > 0 || Boolean(m.recipeNote),
+          cost,
+          margin: marginPercent(m.price, cost),
+        };
       })
       .sort((a, b) => {
         const ca = catById.get(a.menu.categoryId)?.sortOrder ?? 999;
