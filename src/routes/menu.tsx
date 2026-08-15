@@ -124,7 +124,7 @@ function MenuView() {
 
   const activeMenus = menus.filter((m) => m.isActive === 1);
   const withoutRecipe = activeMenus.filter(
-    (m) => !recipes.some((r) => r.menuItemId === m.id) && !m.directCost,
+    (m) => !recipes.some((r) => r.menuItemId === m.id) && !m.recipeNote && !m.directCost,
   );
 
   return (
