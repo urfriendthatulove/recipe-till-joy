@@ -26,6 +26,8 @@ export async function createMaterial(input: MaterialInput) {
       currentStock: opening,
       minStock: input.minStock,
       costPerUnit: input.costPerUnit,
+      ...(input.purchasePrice !== undefined ? { purchasePrice: input.purchasePrice } : {}),
+      ...(input.packSize !== undefined ? { packSize: input.packSize } : {}),
       isActive: 1,
       createdAt: ts,
       updatedAt: ts,
