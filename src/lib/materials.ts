@@ -5,6 +5,10 @@ export interface MaterialInput {
   unit: RawMaterial["unit"];
   minStock: number;
   costPerUnit: number;
+  /** harga beli per kemasan */
+  purchasePrice?: number;
+  /** jumlah/isi per kemasan dalam satuan dasar */
+  packSize?: number;
   /** hanya dipakai saat membuat bahan baru: stok awal */
   openingStock?: number;
 }
