@@ -71,6 +71,8 @@ export interface MenuItem {
   price: number;
   /** biaya langsung untuk item tanpa resep (mis. snack kemasan) */
   directCost?: number;
+  /** catatan resep berbentuk teks (dari data awal / SOP barista) */
+  recipeNote?: string;
   isActive: number;
   createdAt: string;
   updatedAt: string;
@@ -120,14 +122,16 @@ class QuinosDB extends Dexie {
 
   constructor() {
     super("quinos-pos");
-    this.version(1).stores({
+    const schema = {
       materials: "id, name, isActive",
       movements: "id, materialId, createdAt, refId, type",
       categories: "id, sortOrder",
       menus: "id, code, categoryId, isActive",
       recipes: "id, menuItemId, materialId",
       sales: "id, createdAt, voided",
-    });
+    };
+    this.version(1).stores(schema);
+    this.version(2).stores(schema);
   }
 }
 
