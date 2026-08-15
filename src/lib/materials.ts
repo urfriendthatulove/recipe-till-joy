@@ -56,8 +56,8 @@ export async function updateMaterial(id: string, input: MaterialInput) {
     unit: input.unit,
     minStock: input.minStock,
     costPerUnit: input.costPerUnit,
-    purchasePrice: input.purchasePrice,
-    packSize: input.packSize,
+    ...(input.purchasePrice !== undefined ? { purchasePrice: input.purchasePrice } : {}),
+    ...(input.packSize !== undefined ? { packSize: input.packSize } : {}),
     updatedAt: nowISO(),
   });
 }
