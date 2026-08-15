@@ -91,25 +91,34 @@ async function seedMenuCatalog() {
 export async function seedIfEmpty() {
   const seededMenus = await seedMenuCatalog();
 
+  const seededVersion =
+    typeof localStorage !== "undefined" ? localStorage.getItem(MATERIAL_SEED_KEY) : MATERIAL_SEED_VERSION;
   const count = await db.materials.count();
-  if (count > 0) return seededMenus;
+  if (count > 0 && seededVersion === MATERIAL_SEED_VERSION) return seededMenus;
 
   const ts = nowISO();
 
-
-  const materials: RawMaterial[] = MATERIALS.map(([name, unit, currentStock, minStock, costPerUnit]) => ({
+  const materials: RawMaterial[] = MATERIALS.map(([name, unit, purchasePrice, packSize]) => ({
     id: uid(),
     name,
     unit,
-    currentStock,
-    minStock,
-    costPerUnit,
+    currentStock: packSize,
+    minStock: Math.round(packSize * 0.2),
+    purchasePrice,
+    packSize,
+    costPerUnit: packSize > 0 ? purchasePrice / packSize : 0,
     isActive: 1,
     createdAt: ts,
     updatedAt: ts,
   }));
 
-  await db.materials.bulkAdd(materials);
+  await db.transaction("rw", db.materials, db.movements, async () => {
+    await db.movements.clear();
+    await db.materials.clear();
+    await db.materials.bulkAdd(materials);
+  });
+
+  if (typeof localStorage !== "undefined") localStorage.setItem(MATERIAL_SEED_KEY, MATERIAL_SEED_VERSION);
 
   return true;
 }
