@@ -32,6 +32,10 @@ export interface RawMaterial {
   unit: BaseUnit;
   currentStock: number;
   minStock: number;
+  /** Harga beli per kemasan, mis. Rp 140.000 / 1000 g kopi */
+  purchasePrice?: number;
+  /** Jumlah / isi per kemasan dalam satuan dasar */
+  packSize?: number;
   /** Rp per satuan dasar, mis. Rp 18 per ml susu */
   costPerUnit: number;
   isActive: number; // 1 | 0 (Dexie tidak bisa index boolean)
