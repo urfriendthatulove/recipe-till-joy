@@ -73,6 +73,8 @@ export function MaterialFormDialog({ open, onOpenChange, material }: Props) {
       unit,
       minStock: parseLocaleNumber(minStock),
       costPerUnit: costValue,
+      purchasePrice: buyValue,
+      packSize: packValue,
     };
 
     setSaving(true);
