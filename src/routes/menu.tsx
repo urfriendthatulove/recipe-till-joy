@@ -237,20 +237,24 @@ function MenuView() {
                 </TableCell>
               </TableRow>
             ) : (
-              rows.map(({ menu, recipeCount, cost, margin }) => (
+              rows.map(({ menu, recipeCount, hasRecipe, cost, margin }) => (
                 <TableRow key={menu.id}>
-                  <TableCell>
+                  <TableCell className="max-w-80">
                     <div className="font-medium">{menu.name}</div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       {menu.code ? <span>{menu.code}</span> : null}
-                      {recipeCount ? (
-                        <span>{recipeCount} bahan</span>
-                      ) : (
+                      {recipeCount ? <span>{recipeCount} bahan</span> : null}
+                      {!hasRecipe ? (
                         <Badge variant="outline" className="border-amber-500/50 text-amber-700">
                           tanpa resep
                         </Badge>
-                      )}
+                      ) : null}
                     </div>
+                    {menu.recipeNote ? (
+                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                        {menu.recipeNote}
+                      </p>
+                    ) : null}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {catById.get(menu.categoryId)?.name ?? "—"}
