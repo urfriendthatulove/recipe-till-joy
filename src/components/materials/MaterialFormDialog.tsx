@@ -146,23 +146,33 @@ export function MaterialFormDialog({ open, onOpenChange, material }: Props) {
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="cost">Harga pokok per {unit}</Label>
-              <Input
-                id="cost"
-                inputMode="decimal"
-                value={cost}
-                onChange={(e) => setCost(e.target.value)}
-                placeholder="18"
-              />
-              <p className="text-xs text-muted-foreground">
-                {formatRpPrecise(costValue)} / {unit}
-                {unit !== "pcs"
-                  ? ` — setara ${formatRpPrecise(costValue * 1000)} per ${unit === "ml" ? "liter" : "kg"}`
-                  : ""}
-                . Dipakai untuk menghitung HPP & profit tiap menu.
-              </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="buy">Harga beli (per kemasan)</Label>
+                <Input
+                  id="buy"
+                  inputMode="decimal"
+                  value={buyPrice}
+                  onChange={(e) => setBuyPrice(e.target.value)}
+                  placeholder="140000"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="pack">Jumlah / isi ({unit})</Label>
+                <Input
+                  id="pack"
+                  inputMode="decimal"
+                  value={packSize}
+                  onChange={(e) => setPackSize(e.target.value)}
+                  placeholder="1000"
+                />
+              </div>
             </div>
+
+            <p className="text-xs text-muted-foreground">
+              Harga per satuan: <span className="font-medium">{formatRpPrecise(costValue)}</span> / {unit} — dihitung
+              otomatis dari harga beli ÷ jumlah isi, dipakai untuk HPP & profit tiap menu.
+            </p>
 
             {!isEdit ? (
               <div className="grid gap-2">
