@@ -169,10 +169,13 @@ function MaterialsView() {
         <Table>
           <TableHeader>
             <TableRow className="bg-secondary/60">
-              <TableHead>Bahan</TableHead>
+              <TableHead>Nama Bahan</TableHead>
+              <TableHead className="text-right">Harga Beli</TableHead>
+              <TableHead className="text-right">Jumlah/Isi</TableHead>
+              <TableHead className="text-center">Satuan</TableHead>
+              <TableHead className="text-right">Harga per Satuan</TableHead>
               <TableHead className="text-right">Stok</TableHead>
               <TableHead className="text-right">Min.</TableHead>
-              <TableHead className="text-right">Harga pokok</TableHead>
               <TableHead className="text-right">Nilai</TableHead>
               <TableHead className="w-40 text-right">Aksi</TableHead>
             </TableRow>
