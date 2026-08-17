@@ -1,7 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { AlertTriangle, ArrowDownUp, History, Pencil, Plus, Search, Undo2, Archive } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  AlertTriangle,
+  Archive,
+  PackagePlus,
+  PencilLine,
+  Plus,
+  RotateCcw,
+  Search,
+  Trash2,
+  Undo2,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
@@ -11,7 +21,6 @@ import { StockMovementDialog } from "@/components/materials/StockMovementDialog"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -71,6 +80,7 @@ function BahanBakuPage() {
 function MaterialsView() {
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [activeTab, setActiveTab] = useState<"stock" | "history">("stock");
   const [formOpen, setFormOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -82,11 +92,24 @@ function MaterialsView() {
     [] as RawMaterial[],
   );
 
+  const movements = useLiveQuery(async () => db.movements.orderBy("createdAt").reverse().toArray(), [], []);
+
   const visible = materials.filter(
     (m) =>
       (showArchived ? m.isActive === 0 : m.isActive === 1) &&
       m.name.toLowerCase().includes(query.trim().toLowerCase()),
   );
+
+  const latestByMaterial = useMemo(() => {
+    const map = new Map<string, (typeof movements)[number]>();
+    for (const mv of movements) {
+      const current = map.get(mv.materialId);
+      if (!current || (mv.createdAt ?? "") > (current.createdAt ?? "")) {
+        map.set(mv.materialId, mv);
+      }
+    }
+    return map;
+  }, [movements]);
 
   const active = materials.filter((m) => m.isActive === 1);
   const low = active.filter((m) => m.currentStock <= m.minStock);
@@ -111,26 +134,28 @@ function MaterialsView() {
 
   return (
     <AppShell
-      title="Bahan Baku"
-      description="Master bahan, stok masuk, dan kartu stok yang bisa ditelusuri."
+      title="Master Bahan Baku"
+      description="Modul A — stok, supplier, restock & kartu stok"
       actions={
-        <Button onClick={() => openForm(null)}>
-          <Plus className="size-4" /> Tambah Bahan
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="h-11 rounded-xl border-border bg-card text-foreground shadow-sm">
+            <RotateCcw className="size-4" />
+            Reset contoh
+          </Button>
+          <Button
+            onClick={() => openForm(null)}
+            className="h-11 rounded-xl bg-[#7a4a2d] text-[#fffaf4] hover:bg-[#6c4027]"
+          >
+            <Plus className="size-4" />
+            Bahan baru
+          </Button>
+        </div>
       }
     >
-      <div className="mb-6 grid gap-3 sm:grid-cols-3">
-        <Stat label="Bahan aktif" value={`${active.length} item`} />
-        <Stat
-          label="Nilai stok"
-          value={formatRp(inventoryValue)}
-          hint="stok × harga pokok"
-        />
-        <Stat
-          label="Stok menipis"
-          value={`${low.length} item`}
-          tone={low.length > 0 ? "warn" : "ok"}
-        />
+      <div className="mb-6 grid gap-3 md:grid-cols-3">
+        <Stat label="Jenis bahan" value={`${active.length}`} />
+        <Stat label="Nilai stok (HPP)" value={formatRp(inventoryValue)} />
+        <Stat label="Bahan menipis" value={`${low.length}`} tone={low.length > 0 ? "warn" : "ok"} />
       </div>
 
       {low.length > 0 && !showArchived ? (
@@ -149,121 +174,188 @@ function MaterialsView() {
         </div>
       ) : null}
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-56">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari bahan…"
-            className="pl-9"
-          />
-        </div>
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Switch checked={showArchived} onCheckedChange={setShowArchived} />
-          Tampilkan arsip
-        </label>
+      <div className="mb-4 flex w-full items-center gap-2 overflow-hidden rounded-lg border border-border bg-[#f2efe9] p-1 shadow-sm">
+        {[
+          { label: "Stok Bahan", value: "stock" },
+          { label: "Kartu Stok", value: "history" },
+        ].map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            onClick={() => setActiveTab(tab.value as "stock" | "history")}
+            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === tab.value
+                ? "bg-white text-foreground shadow-sm ring-1 ring-border"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-secondary/60">
-              <TableHead>Nama Bahan</TableHead>
-              <TableHead className="text-right">Harga Beli</TableHead>
-              <TableHead className="text-right">Jumlah/Isi</TableHead>
-              <TableHead className="text-center">Satuan</TableHead>
-              <TableHead className="text-right">Harga per Satuan</TableHead>
-              <TableHead className="text-right">Stok</TableHead>
-              <TableHead className="text-right">Min.</TableHead>
-              <TableHead className="text-right">Nilai</TableHead>
-              <TableHead className="w-40 text-right">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {visible.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
-                  {showArchived ? "Tidak ada bahan yang diarsipkan." : "Belum ada bahan cocok."}
-                </TableCell>
-              </TableRow>
-            ) : (
-              visible.map((m) => {
-                const isLow = m.currentStock <= m.minStock;
-                return (
-                  <TableRow key={m.id}>
-                    <TableCell>
-                      <div className="font-medium">{m.name}</div>
-                      <div className="text-xs text-muted-foreground">satuan {m.unit}</div>
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      <span className={isLow ? "font-semibold text-destructive" : ""}>
-                        {formatNumber(m.currentStock)}
-                      </span>
-                      {isLow ? (
-                        <Badge variant="outline" className="ml-2 border-destructive/30 bg-destructive/10 text-destructive">
-                          menipis
-                        </Badge>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-muted-foreground">
-                      {formatNumber(m.minStock)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-muted-foreground">
-                      {formatRpPrecise(m.costPerUnit)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {formatRp(m.currentStock * m.costPerUnit)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {m.isActive === 1 ? (
-                        <div className="flex justify-end gap-1">
-                          <Button size="icon" variant="ghost" title="Catat stok" onClick={() => openMove(m)}>
-                            <ArrowDownUp className="size-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" title="Kartu stok" onClick={() => openHistory(m)}>
-                            <History className="size-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" title="Edit" onClick={() => openForm(m)}>
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            title="Arsipkan"
-                            onClick={async () => {
-                              await archiveMaterial(m.id);
-                              toast.success(`${m.name} diarsipkan`);
-                            }}
-                          >
-                            <Archive className="size-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={async () => {
-                            await restoreMaterial(m.id);
-                            toast.success(`${m.name} diaktifkan lagi`);
-                          }}
-                        >
-                          <Undo2 className="size-4" /> Aktifkan
-                        </Button>
-                      )}
+      {activeTab === "stock" ? (
+        <>
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Cari bahan atau supplier..."
+                className="h-12 rounded-xl border-border bg-card pl-9 text-base shadow-sm"
+              />
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-[#f3efe9] hover:bg-[#f3efe9]">
+                  <TableHead className="py-4 text-base font-medium text-foreground">Bahan</TableHead>
+                  <TableHead className="py-4 text-base font-medium text-foreground">Supplier</TableHead>
+                  <TableHead className="py-4 text-base font-medium text-foreground">Stok</TableHead>
+                  <TableHead className="py-4 text-base font-medium text-foreground">Min.</TableHead>
+                  <TableHead className="py-4 text-base font-medium text-foreground">HPP / satuan</TableHead>
+                  <TableHead className="py-4 text-right text-base font-medium text-foreground">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visible.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                      {showArchived ? "Tidak ada bahan yang diarsipkan." : "Belum ada bahan cocok."}
                     </TableCell>
                   </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                ) : (
+                  visible.map((m) => {
+                    const isLow = m.currentStock <= m.minStock;
+                    return (
+                      <TableRow key={m.id} className="border-b border-border/80 hover:bg-[#faf7f3]">
+                        <TableCell className="py-4">
+                          <div className="font-medium text-[15px] text-foreground">{m.name}</div>
+                        </TableCell>
+                        <TableCell className="py-4 text-[15px] text-muted-foreground">
+                          {m.supplier || "-"}
+                        </TableCell>
+                        <TableCell className="py-4 text-[15px] font-medium text-foreground">
+                          {isLow ? (
+                            <span className="text-[#8c3d2b]">{formatNumber(m.currentStock)} {m.unit}</span>
+                          ) : (
+                            <span>{formatNumber(m.currentStock)} {m.unit}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-4 text-[15px] text-muted-foreground">
+                          {formatNumber(m.minStock)} {m.unit}
+                        </TableCell>
+                        <TableCell className="py-4 text-[15px] font-medium text-foreground">
+                          {formatRpPrecise(m.costPerUnit)}
+                        </TableCell>
+                        <TableCell className="py-4 text-right">
+                          {m.isActive === 1 ? (
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="h-9 rounded-lg border border-border bg-[#f3eee9] text-foreground hover:bg-[#eae3dc]"
+                                onClick={() => openMove(m)}
+                              >
+                                <PackagePlus className="size-4" />
+                                Restock
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-9 w-9 rounded-lg border border-border bg-card text-foreground hover:bg-secondary"
+                                onClick={() => openForm(m)}
+                              >
+                                <PencilLine className="size-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-9 w-9 rounded-lg border border-border bg-card text-destructive hover:bg-red-50"
+                                onClick={async () => {
+                                  await archiveMaterial(m.id);
+                                  toast.success(`${m.name} diarsipkan`);
+                                }}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                await restoreMaterial(m.id);
+                                toast.success(`${m.name} diaktifkan lagi`);
+                              }}
+                            >
+                              <Undo2 className="size-4" /> Aktifkan
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-[#f3efe9] hover:bg-[#f3efe9]">
+                <TableHead className="py-4 text-base font-medium text-foreground">Bahan</TableHead>
+                <TableHead className="py-4 text-base font-medium text-foreground">Supplier</TableHead>
+                <TableHead className="py-4 text-base font-medium text-foreground">Saldo</TableHead>
+                <TableHead className="py-4 text-base font-medium text-foreground">Terakhir</TableHead>
+                <TableHead className="py-4 text-base font-medium text-foreground">Catatan</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {materials.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
+                    Belum ada kartu stok.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                materials
+                  .filter((m) => m.isActive === 1)
+                  .map((m) => {
+                    const latest = latestByMaterial.get(m.id);
+                    return (
+                      <TableRow key={m.id} className="border-b border-border/80 hover:bg-[#faf7f3]">
+                        <TableCell className="py-4 font-medium text-[15px] text-foreground">{m.name}</TableCell>
+                        <TableCell className="py-4 text-[15px] text-muted-foreground">{m.supplier || "-"}</TableCell>
+                        <TableCell className="py-4 text-[15px] font-medium text-foreground">
+                          {formatNumber(m.currentStock)} {m.unit}
+                        </TableCell>
+                        <TableCell className="py-4 text-[15px] text-muted-foreground">
+                          {latest ? new Date(latest.createdAt).toLocaleString("id-ID", {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            }) : "-"}
+                        </TableCell>
+                        <TableCell className="py-4 text-[15px] text-muted-foreground">
+                          {latest ? `${latest.type.toUpperCase()} • ${latest.note ?? "-"}` : "Belum ada pergerakan"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       <MaterialFormDialog open={formOpen} onOpenChange={setFormOpen} material={selectedLive} />
       <StockMovementDialog open={moveOpen} onOpenChange={setMoveOpen} material={selectedLive} />
       <StockHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} material={selectedLive} />
-
     </AppShell>
   );
 }

@@ -35,6 +35,7 @@ interface Props {
 export function MaterialFormDialog({ open, onOpenChange, material }: Props) {
   const isEdit = !!material;
   const [name, setName] = useState("");
+  const [supplier, setSupplier] = useState("");
   const [unit, setUnit] = useState<BaseUnit>("ml");
   const [minStock, setMinStock] = useState("");
   const [buyPrice, setBuyPrice] = useState("");
@@ -45,6 +46,7 @@ export function MaterialFormDialog({ open, onOpenChange, material }: Props) {
   useEffect(() => {
     if (!open) return;
     setName(material?.name ?? "");
+    setSupplier(material?.supplier ?? "");
     setUnit(material?.unit ?? "ml");
     setMinStock(material ? String(material.minStock) : "");
     setBuyPrice(material?.purchasePrice ? String(material.purchasePrice) : "");
@@ -70,6 +72,7 @@ export function MaterialFormDialog({ open, onOpenChange, material }: Props) {
 
     const payload: MaterialInput = {
       name,
+      supplier: supplier.trim(),
       unit,
       minStock: parseLocaleNumber(minStock),
       costPerUnit: costValue,
@@ -114,6 +117,16 @@ export function MaterialFormDialog({ open, onOpenChange, material }: Props) {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Susu UHT Full Cream"
                 autoFocus
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="supplier">Supplier</Label>
+              <Input
+                id="supplier"
+                value={supplier}
+                onChange={(e) => setSupplier(e.target.value)}
+                placeholder="PT. Maju Jaya"
               />
             </div>
 

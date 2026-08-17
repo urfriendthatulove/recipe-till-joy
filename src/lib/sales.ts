@@ -9,6 +9,7 @@ import {
   type SaleItem,
   type StockMovement,
 } from "./db";
+import { isSupabaseEnabled, supabase } from "./supabase";
 
 export interface CartLine {
   menuItemId: string;
@@ -25,7 +26,6 @@ export interface SaleInput {
   note?: string;
 }
 
-/** QNS-20260804-0007 */
 async function nextSaleNumber(date = new Date()) {
   const ymd = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(
     date.getDate(),
@@ -35,7 +35,6 @@ async function nextSaleNumber(date = new Date()) {
   return `QNS-${ymd}-${String(count + 1).padStart(4, "0")}`;
 }
 
-/** Kebutuhan bahan untuk isi keranjang, dipakai untuk cek stok sebelum bayar. */
 export function materialUsage(
   lines: CartLine[],
   recipes: RecipeItem[],
@@ -49,13 +48,126 @@ export function materialUsage(
   return need;
 }
 
-/**
- * Simpan penjualan + potong stok bahan sesuai resep, dalam satu transaksi.
- * Kalau ada bahan yang tidak cukup, seluruh transaksi dibatalkan.
- */
 export async function createSale(input: SaleInput) {
   const clean = input.lines.filter((l) => l.qty > 0);
   if (clean.length === 0) throw new Error("Keranjang masih kosong");
+
+  if (isSupabaseEnabled && supabase) {
+    const ts = nowISO();
+    const saleId = uid();
+    const saleNumber = await nextSaleNumber(new Date(ts));
+    const menus = new Map<string, MenuItem>();
+    for (const l of clean) {
+      const m = await db.menus.get(l.menuItemId);
+      if (!m) throw new Error("Menu tidak ditemukan");
+      menus.set(m.id, m);
+    }
+
+    const allRecipes = await db.recipes.toArray();
+    const need = materialUsage(clean, allRecipes);
+    const mats = new Map<string, RawMaterial>();
+    for (const [materialId, qty] of need) {
+      const mat = await db.materials.get(materialId);
+      if (!mat) continue;
+      if (mat.currentStock < qty) {
+        throw new Error(`Stok ${mat.name} tidak cukup (butuh ${qty} ${mat.unit}, tersisa ${mat.currentStock} ${mat.unit})`);
+      }
+      mats.set(materialId, mat);
+    }
+
+    const items: SaleItem[] = clean.map((l) => {
+      const menu = menus.get(l.menuItemId)!;
+      const recipeCost = allRecipes
+        .filter((r) => r.menuItemId === menu.id)
+        .reduce((s, r) => s + r.qty * (mats.get(r.materialId)?.costPerUnit ?? 0), 0);
+      const unitCost = recipeCost + (menu.directCost ?? 0);
+      const gross = menu.price * l.qty;
+      const discount = Math.min(Math.max(l.discount, 0), gross);
+      return {
+        id: uid(),
+        menuItemId: menu.id,
+        nameSnapshot: menu.name,
+        priceSnapshot: menu.price,
+        qty: l.qty,
+        discount,
+        lineNet: gross - discount,
+        lineCost: unitCost * l.qty,
+      };
+    });
+
+    const subtotal = items.reduce((s, i) => s + i.priceSnapshot * i.qty, 0);
+    const lineDiscount = items.reduce((s, i) => s + i.discount, 0);
+    const billDiscount = Math.min(Math.max(input.discount ?? 0, 0), subtotal - lineDiscount);
+    const discount = lineDiscount + billDiscount;
+    const netSales = subtotal - discount;
+    const totalCost = items.reduce((s, i) => s + i.lineCost, 0);
+
+    for (const [materialId, qty] of need) {
+      const mat = mats.get(materialId);
+      if (!mat) continue;
+      const balanceAfter = mat.currentStock - qty;
+      const movement: StockMovement = {
+        id: uid(),
+        materialId: mat.id,
+        type: "out",
+        qty,
+        balanceAfter,
+        refType: "sale",
+        refId: saleId,
+        note: `Penjualan ${saleNumber}`,
+        createdAt: ts,
+      };
+      await supabase.from("stock_movements").upsert({
+        id: movement.id,
+        material_id: movement.materialId,
+        type: movement.type,
+        qty: movement.qty,
+        balance_after: movement.balanceAfter,
+        unit_cost: movement.unitCost ?? null,
+        ref_type: movement.refType,
+        ref_id: movement.refId ?? null,
+        note: movement.note ?? null,
+        created_at: movement.createdAt,
+      }, { onConflict: "id" });
+      await supabase.from("materials").update({ current_stock: balanceAfter, updated_at: ts }).eq("id", mat.id);
+      await db.materials.put({ ...mat, currentStock: balanceAfter, updatedAt: ts });
+      await db.movements.put(movement);
+    }
+
+    const sale: Sale = {
+      id: saleId,
+      saleNumber,
+      createdAt: ts,
+      items,
+      subtotal,
+      discount,
+      netSales,
+      totalCost,
+      profit: netSales - totalCost,
+      paymentMethod: input.paymentMethod,
+      voided: 0,
+    };
+    if (input.note?.trim()) sale.note = input.note.trim();
+
+    const { error } = await supabase.from("sales").upsert({
+      id: sale.id,
+      sale_number: sale.saleNumber,
+      created_at: sale.createdAt,
+      items: sale.items,
+      subtotal: sale.subtotal,
+      discount: sale.discount,
+      net_sales: sale.netSales,
+      total_cost: sale.totalCost,
+      profit: sale.profit,
+      payment_method: sale.paymentMethod,
+      note: sale.note ?? null,
+      voided: false,
+    }, { onConflict: "id" });
+    if (error) throw error;
+
+    await db.sales.put(sale);
+    return sale;
+  }
 
   return db.transaction(
     "rw",
@@ -78,16 +190,12 @@ export async function createSale(input: SaleInput) {
 
       const allRecipes = await db.recipes.toArray();
       const need = materialUsage(clean, allRecipes);
-
-      // Validasi stok dulu, baru potong.
       const mats = new Map<string, RawMaterial>();
       for (const [materialId, qty] of need) {
         const mat = await db.materials.get(materialId);
         if (!mat) continue;
         if (mat.currentStock < qty) {
-          throw new Error(
-            `Stok ${mat.name} tidak cukup (butuh ${qty} ${mat.unit}, tersisa ${mat.currentStock} ${mat.unit})`,
-          );
+          throw new Error(`Stok ${mat.name} tidak cukup (butuh ${qty} ${mat.unit}, tersisa ${mat.currentStock} ${mat.unit})`);
         }
         mats.set(materialId, mat);
       }
@@ -115,15 +223,11 @@ export async function createSale(input: SaleInput) {
 
       const subtotal = items.reduce((s, i) => s + i.priceSnapshot * i.qty, 0);
       const lineDiscount = items.reduce((s, i) => s + i.discount, 0);
-      const billDiscount = Math.min(
-        Math.max(input.discount ?? 0, 0),
-        subtotal - lineDiscount,
-      );
+      const billDiscount = Math.min(Math.max(input.discount ?? 0, 0), subtotal - lineDiscount);
       const discount = lineDiscount + billDiscount;
       const netSales = subtotal - discount;
       const totalCost = items.reduce((s, i) => s + i.lineCost, 0);
 
-      // Potong stok lewat kartu stok supaya tetap bisa diaudit.
       for (const [materialId, qty] of need) {
         const mat = mats.get(materialId);
         if (!mat) continue;
@@ -164,17 +268,58 @@ export async function createSale(input: SaleInput) {
   );
 }
 
-/** Batalkan nota: stok bahan dikembalikan lewat kartu stok. */
 export async function voidSale(saleId: string, reason?: string) {
+  if (isSupabaseEnabled && supabase) {
+    const sale = await db.sales.get(saleId);
+    if (!sale) throw new Error("Nota tidak ditemukan");
+    if (sale.voided) throw new Error("Nota ini sudah dibatalkan");
+    const ts = nowISO();
+    const outs = (await db.movements.where("refId").equals(saleId).toArray()).filter((m) => m.type === "out");
+
+    for (const mv of outs) {
+      const mat = await db.materials.get(mv.materialId);
+      if (!mat) continue;
+      const balanceAfter = mat.currentStock + mv.qty;
+      const refund: StockMovement = {
+        id: uid(),
+        materialId: mat.id,
+        type: "in",
+        qty: mv.qty,
+        balanceAfter,
+        refType: "sale",
+        refId: saleId,
+        note: `Pembatalan ${sale.saleNumber}${reason ? ` — ${reason}` : ""}`,
+        createdAt: ts,
+      };
+      await supabase.from("stock_movements").upsert({
+        id: refund.id,
+        material_id: refund.materialId,
+        type: refund.type,
+        qty: refund.qty,
+        balance_after: refund.balanceAfter,
+        unit_cost: refund.unitCost ?? null,
+        ref_type: refund.refType,
+        ref_id: refund.refId ?? null,
+        note: refund.note ?? null,
+        created_at: refund.createdAt,
+      }, { onConflict: "id" });
+      await supabase.from("materials").update({ current_stock: balanceAfter, updated_at: ts }).eq("id", mat.id);
+      await db.materials.put({ ...mat, currentStock: balanceAfter, updatedAt: ts });
+      await db.movements.put(refund);
+    }
+
+    await supabase.from("sales").update({ voided: true }).eq("id", saleId);
+    await db.sales.update(saleId, { voided: 1 });
+    return;
+  }
+
   await db.transaction("rw", db.sales, db.recipes, db.materials, db.movements, async () => {
     const sale = await db.sales.get(saleId);
     if (!sale) throw new Error("Nota tidak ditemukan");
     if (sale.voided) throw new Error("Nota ini sudah dibatalkan");
 
     const ts = nowISO();
-    const outs = (await db.movements.where("refId").equals(saleId).toArray()).filter(
-      (m) => m.type === "out",
-    );
+    const outs = (await db.movements.where("refId").equals(saleId).toArray()).filter((m) => m.type === "out");
 
     for (const mv of outs) {
       const mat = await db.materials.get(mv.materialId);

@@ -29,6 +29,7 @@ export const INPUT_UNITS: Record<BaseUnit, { label: string; factor: number }[]> 
 export interface RawMaterial {
   id: string;
   name: string;
+  supplier?: string;
   unit: BaseUnit;
   currentStock: number;
   minStock: number;
