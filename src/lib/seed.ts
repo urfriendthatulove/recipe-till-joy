@@ -128,29 +128,18 @@ export async function seedIfEmpty() {
     return;
   }
 
-  await db.transaction(
-    "rw",
-    db.materials,
-    db.categories,
-    db.menus,
-    db.recipes,
-    db.sales,
-    db.movements,
-    async () => {
-      await db.movements.clear();
-      await db.sales.clear();
-      await db.recipes.clear();
-      await db.menus.clear();
-      await db.categories.clear();
-      await db.materials.clear();
+  await db.movements.clear();
+  await db.sales.clear();
+  await db.recipes.clear();
+  await db.menus.clear();
+  await db.categories.clear();
+  await db.materials.clear();
 
-      if (materialRows.length) await db.materials.bulkPut(materialRows);
-      if (categoryRows.length) await db.categories.bulkPut(categoryRows);
-      if (menuRows.length) await db.menus.bulkPut(menuRows);
-      if (recipeRows.length) await db.recipes.bulkPut(recipeRows);
-      if (saleRows.length) await db.sales.bulkPut(saleRows);
-      if (movementRows.length) await db.movements.bulkPut(movementRows);
-    },
-  );
+  if (materialRows.length) await db.materials.bulkPut(materialRows);
+  if (categoryRows.length) await db.categories.bulkPut(categoryRows);
+  if (menuRows.length) await db.menus.bulkPut(menuRows);
+  if (recipeRows.length) await db.recipes.bulkPut(recipeRows);
+  if (saleRows.length) await db.sales.bulkPut(saleRows);
+  if (movementRows.length) await db.movements.bulkPut(movementRows);
 }
 
