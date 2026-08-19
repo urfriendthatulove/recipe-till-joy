@@ -6,7 +6,6 @@ import {
   PackagePlus,
   PencilLine,
   Plus,
-  RotateCcw,
   Search,
   Trash2,
   Undo2,
@@ -138,10 +137,6 @@ function MaterialsView() {
       description="Modul A — stok, supplier, restock & kartu stok"
       actions={
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="h-11 rounded-xl border-border bg-card text-foreground shadow-sm">
-            <RotateCcw className="size-4" />
-            Reset contoh
-          </Button>
           <Button
             onClick={() => openForm(null)}
             className="h-11 rounded-xl bg-[#7a4a2d] text-[#fffaf4] hover:bg-[#6c4027]"

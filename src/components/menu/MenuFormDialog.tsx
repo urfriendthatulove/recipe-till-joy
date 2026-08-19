@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import type { MenuCategory, MenuItem } from "@/lib/db";
 import { formatRp, parseLocaleNumber } from "@/lib/format";
-import { createMenu, updateMenu, type MenuInput } from "@/lib/menus";
+import { createCategory, createMenu, updateMenu, type MenuInput } from "@/lib/menus";
 
 interface Props {
   open: boolean;
@@ -36,9 +36,11 @@ export function MenuFormDialog({ open, onOpenChange, menu, categories }: Props) 
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [price, setPrice] = useState("");
   const [directCost, setDirectCost] = useState("");
   const [saving, setSaving] = useState(false);
+  const [creatingCategory, setCreatingCategory] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -51,6 +53,37 @@ export function MenuFormDialog({ open, onOpenChange, menu, categories }: Props) 
 
   const priceValue = parseLocaleNumber(price);
 
+  async function handleCreateCategory() {
+    const name = newCategoryName.trim();
+    if (!name) {
+      toast.error("Nama kategori wajib diisi");
+      return;
+    }
+
+    const duplicate = categories.some((c) => c.name.toLowerCase() === name.toLowerCase());
+    if (duplicate) {
+      const matched = categories.find((c) => c.name.toLowerCase() === name.toLowerCase());
+      if (matched) {
+        setCategoryId(matched.id);
+        setNewCategoryName("");
+      }
+      toast.message("Kategori sudah ada");
+      return;
+    }
+
+    setCreatingCategory(true);
+    try {
+      const id = await createCategory(name);
+      setCategoryId(id);
+      setNewCategoryName("");
+      toast.success(`Kategori "${name}" ditambahkan`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gagal menambah kategori");
+    } finally {
+      setCreatingCategory(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
@@ -58,7 +91,7 @@ export function MenuFormDialog({ open, onOpenChange, menu, categories }: Props) 
       return;
     }
     if (!categoryId) {
-      toast.error("Pilih kategori dulu");
+      toast.error("Pilih atau buat kategori dulu");
       return;
     }
 
@@ -135,6 +168,27 @@ export function MenuFormDialog({ open, onOpenChange, menu, categories }: Props) 
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="new-category">Tambah kategori baru</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="new-category"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Masukkan kategori baru"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCreateCategory}
+                  disabled={creatingCategory || !newCategoryName.trim()}
+                  className="whitespace-nowrap"
+                >
+                  {creatingCategory ? "Menyimpan..." : "Tambah"}
+                </Button>
+              </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
