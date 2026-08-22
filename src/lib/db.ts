@@ -26,6 +26,14 @@ export const INPUT_UNITS: Record<BaseUnit, { label: string; factor: number }[]> 
   pcs: [{ label: "pcs", factor: 1 }],
 };
 
+export type MaterialType = "single" | "mix";
+
+export interface MaterialMixComponent {
+  id: string;
+  materialId: string;
+  qty: number;
+}
+
 export interface RawMaterial {
   id: string;
   name: string;
@@ -39,6 +47,8 @@ export interface RawMaterial {
   packSize?: number;
   /** Rp per satuan dasar, mis. Rp 18 per ml susu */
   costPerUnit: number;
+  materialType?: MaterialType;
+  mixComponents?: MaterialMixComponent[];
   isActive: number; // 1 | 0 (Dexie tidak bisa index boolean)
   createdAt: string;
   updatedAt: string;
@@ -128,7 +138,7 @@ class QuinosDB extends Dexie {
   constructor() {
     super("quinos-pos");
     const schema = {
-      materials: "id, name, isActive",
+      materials: "id, name, isActive, materialType",
       movements: "id, materialId, createdAt, refId, type",
       categories: "id, sortOrder",
       menus: "id, code, categoryId, isActive",
@@ -138,6 +148,7 @@ class QuinosDB extends Dexie {
     this.version(1).stores(schema);
     this.version(2).stores(schema);
     this.version(3).stores(schema);
+    this.version(4).stores(schema);
   }
 }
 

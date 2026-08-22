@@ -1,4 +1,4 @@
-import { db, type MenuCategory, type MenuItem, type RawMaterial, type RecipeItem, type Sale, type StockMovement } from "./db";
+import { db, uid, type MenuCategory, type MenuItem, type RawMaterial, type RecipeItem, type Sale, type StockMovement } from "./db";
 import { isSupabaseEnabled, supabase } from "./supabase";
 
 const materialFromSupabase = (row: any): RawMaterial => ({
@@ -11,6 +11,14 @@ const materialFromSupabase = (row: any): RawMaterial => ({
   purchasePrice: row.purchase_price ?? undefined,
   packSize: row.pack_size ?? undefined,
   costPerUnit: Number(row.cost_per_unit ?? 0),
+  materialType: row.material_type ?? "single",
+  mixComponents: Array.isArray(row.mix_components)
+    ? row.mix_components.map((item: any) => ({
+        id: item.id ?? uid(),
+        materialId: item.material_id ?? item.materialId,
+        qty: Number(item.qty ?? 0),
+      }))
+    : [],
   isActive: row.is_active ? 1 : 0,
   createdAt: row.created_at ?? new Date().toISOString(),
   updatedAt: row.updated_at ?? new Date().toISOString(),

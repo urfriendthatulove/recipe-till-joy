@@ -7,6 +7,8 @@ export interface MaterialInput {
   unit: RawMaterial["unit"];
   minStock: number;
   costPerUnit: number;
+  materialType?: RawMaterial["materialType"];
+  mixComponents?: { materialId: string; qty: number }[];
   /** harga beli per kemasan */
   purchasePrice?: number;
   /** jumlah/isi per kemasan dalam satuan dasar */
@@ -25,6 +27,8 @@ const mapMaterialRow = (m: RawMaterial) => ({
   purchase_price: m.purchasePrice ?? null,
   pack_size: m.packSize ?? null,
   cost_per_unit: m.costPerUnit,
+  material_type: m.materialType ?? "single",
+  mix_components: Array.isArray(m.mixComponents) ? m.mixComponents : [],
   is_active: m.isActive === 1,
   created_at: m.createdAt,
   updated_at: m.updatedAt,
@@ -40,6 +44,14 @@ const materialFromSupabase = (row: any): RawMaterial => ({
   purchasePrice: row.purchase_price ?? undefined,
   packSize: row.pack_size ?? undefined,
   costPerUnit: Number(row.cost_per_unit ?? 0),
+  materialType: row.material_type ?? "single",
+  mixComponents: Array.isArray(row.mix_components)
+    ? row.mix_components.map((item: any) => ({
+        id: item.id ?? uid(),
+        materialId: item.material_id ?? item.materialId,
+        qty: Number(item.qty ?? 0),
+      }))
+    : [],
   isActive: row.is_active ? 1 : 0,
   createdAt: row.created_at ?? nowISO(),
   updatedAt: row.updated_at ?? nowISO(),
@@ -49,6 +61,13 @@ export async function createMaterial(input: MaterialInput) {
   const ts = nowISO();
   const id = uid();
   const opening = input.openingStock ?? 0;
+  const materialType = input.materialType ?? "single";
+  const mixComponents = (input.mixComponents ?? []).filter((item) => item.materialId && item.qty > 0);
+
+  if (materialType === "mix" && mixComponents.length === 0) {
+    throw new Error("Komposisi bahan campuran wajib diisi");
+  }
+
   const row: RawMaterial = {
     id,
     name: input.name.trim(),
@@ -57,6 +76,8 @@ export async function createMaterial(input: MaterialInput) {
     currentStock: opening,
     minStock: input.minStock,
     costPerUnit: input.costPerUnit,
+    materialType,
+    mixComponents: mixComponents.map((item) => ({ id: uid(), materialId: item.materialId, qty: item.qty })),
     ...(input.purchasePrice !== undefined ? { purchasePrice: input.purchasePrice } : {}),
     ...(input.packSize !== undefined ? { packSize: input.packSize } : {}),
     isActive: 1,
@@ -133,6 +154,13 @@ export async function createMaterial(input: MaterialInput) {
 export async function updateMaterial(id: string, input: MaterialInput) {
   const ts = nowISO();
   const base = await db.materials.get(id);
+  const materialType = input.materialType ?? base?.materialType ?? "single";
+  const mixComponents = (input.mixComponents ?? base?.mixComponents ?? []).filter((item) => item.materialId && item.qty > 0);
+
+  if (materialType === "mix" && mixComponents.length === 0) {
+    throw new Error("Komposisi bahan campuran wajib diisi");
+  }
+
   const row: RawMaterial = {
     ...(base ?? { id, currentStock: 0, isActive: 1, createdAt: ts, updatedAt: ts }),
     id,
@@ -141,6 +169,8 @@ export async function updateMaterial(id: string, input: MaterialInput) {
     unit: input.unit,
     minStock: input.minStock,
     costPerUnit: input.costPerUnit,
+    materialType,
+    mixComponents: mixComponents.map((item) => ({ id: item.id ?? uid(), materialId: item.materialId, qty: item.qty })),
     ...(input.purchasePrice !== undefined ? { purchasePrice: input.purchasePrice } : {}),
     ...(input.packSize !== undefined ? { packSize: input.packSize } : {}),
     updatedAt: ts,
@@ -153,6 +183,8 @@ export async function updateMaterial(id: string, input: MaterialInput) {
       unit: row.unit,
       min_stock: row.minStock,
       cost_per_unit: row.costPerUnit,
+      material_type: row.materialType ?? "single",
+      mix_components: row.mixComponents ?? [],
       purchase_price: row.purchasePrice ?? null,
       pack_size: row.packSize ?? null,
       updated_at: ts,

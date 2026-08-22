@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BASE_UNIT_LABEL, type BaseUnit, type RawMaterial } from "@/lib/db";
+import { db, uid, BASE_UNIT_LABEL, type BaseUnit, type MaterialType, type RawMaterial } from "@/lib/db";
 import { formatRpPrecise, parseLocaleNumber } from "@/lib/format";
 import { createMaterial, updateMaterial, type MaterialInput } from "@/lib/materials";
 
@@ -37,26 +38,74 @@ export function MaterialFormDialog({ open, onOpenChange, material }: Props) {
   const [name, setName] = useState("");
   const [supplier, setSupplier] = useState("");
   const [unit, setUnit] = useState<BaseUnit>("ml");
+  const [materialType, setMaterialType] = useState<MaterialType>("single");
+  const [mixComponents, setMixComponents] = useState<{ id: string; materialId: string; qty: string }[]>([]);
   const [minStock, setMinStock] = useState("");
   const [buyPrice, setBuyPrice] = useState("");
   const [packSize, setPackSize] = useState("");
   const [opening, setOpening] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const allMaterials = useLiveQuery(async () => db.materials.toArray(), [], [] as RawMaterial[]);
+
   useEffect(() => {
     if (!open) return;
     setName(material?.name ?? "");
     setSupplier(material?.supplier ?? "");
     setUnit(material?.unit ?? "ml");
+    setMaterialType(material?.materialType ?? "single");
+    setMixComponents(
+      (material?.mixComponents ?? []).map((item) => ({
+        id: item.id,
+        materialId: item.materialId,
+        qty: String(item.qty),
+      })),
+    );
     setMinStock(material ? String(material.minStock) : "");
     setBuyPrice(material?.purchasePrice ? String(material.purchasePrice) : "");
     setPackSize(material?.packSize ? String(material.packSize) : "");
     setOpening("");
   }, [open, material]);
 
+  const mixRows = useMemo(() => {
+    if (materialType !== "mix") return [];
+    return mixComponents.length
+      ? mixComponents
+      : [{ id: uid(), materialId: "", qty: "" }];
+  }, [materialType, mixComponents]);
+
   const buyValue = parseLocaleNumber(buyPrice);
   const packValue = parseLocaleNumber(packSize);
-  const costValue = packValue > 0 ? buyValue / packValue : (material?.costPerUnit ?? 0);
+  const baseCostValue = packValue > 0 ? buyValue / packValue : (material?.costPerUnit ?? 0);
+  const mixCostValue = useMemo(() => {
+    if (materialType !== "mix") return baseCostValue;
+    const valid = mixComponents.filter((row) => row.materialId && Number(row.qty) > 0);
+    if (!valid.length) return 0;
+
+    const totalQty = valid.reduce((sum, row) => sum + Number(row.qty), 0);
+    const totalCost = valid.reduce((sum, row) => {
+      const target = allMaterials.find((m) => m.id === row.materialId);
+      return sum + (target ? (target.costPerUnit * Number(row.qty)) : 0);
+    }, 0);
+
+    return totalQty > 0 ? totalCost / totalQty : 0;
+  }, [materialType, mixComponents, allMaterials, baseCostValue]);
+
+  const costValue = materialType === "mix" ? mixCostValue : baseCostValue;
+
+  function addMixComponent() {
+    setMixComponents((prev) => [...prev, { id: uid(), materialId: "", qty: "" }]);
+  }
+
+  function updateMixComponent(id: string, patch: Partial<{ materialId: string; qty: string }>) {
+    setMixComponents((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, ...patch } : row)),
+    );
+  }
+
+  function removeMixComponent(id: string) {
+    setMixComponents((prev) => prev.filter((row) => row.id !== id));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,10 +119,22 @@ export function MaterialFormDialog({ open, onOpenChange, material }: Props) {
     }
 
 
+    if (materialType === "mix") {
+      const validMix = mixComponents.filter((row) => row.materialId && Number(row.qty) > 0);
+      if (validMix.length === 0) {
+        toast.error("Pilih setidaknya satu komponen bahan campuran");
+        return;
+      }
+    }
+
     const payload: MaterialInput = {
       name,
       supplier: supplier.trim(),
       unit,
+      materialType,
+      mixComponents: mixComponents
+        .filter((row) => row.materialId && Number(row.qty) > 0)
+        .map((row) => ({ materialId: row.materialId, qty: Number(row.qty) })),
       minStock: parseLocaleNumber(minStock),
       costPerUnit: costValue,
       purchasePrice: buyValue,
@@ -132,6 +193,19 @@ export function MaterialFormDialog({ open, onOpenChange, material }: Props) {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
+                <Label>Jenis bahan</Label>
+                <Select value={materialType} onValueChange={(v) => setMaterialType(v as MaterialType)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single">Single</SelectItem>
+                    <SelectItem value="mix">Mix</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
                 <Label>Satuan dasar</Label>
                 <Select value={unit} onValueChange={(v) => setUnit(v as BaseUnit)}>
                   <SelectTrigger>
@@ -146,7 +220,60 @@ export function MaterialFormDialog({ open, onOpenChange, material }: Props) {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
+            {materialType === "mix" ? (
+              <div className="grid gap-3 rounded-md border border-dashed border-border p-3">
+                <div className="flex items-center justify-between">
+                  <Label>Komposisi bahan campuran</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addMixComponent}>
+                    Tambah komponen
+                  </Button>
+                </div>
+
+                {mixRows.map((row, index) => (
+                  <div key={row.id} className="grid gap-2 sm:grid-cols-[1.5fr_0.8fr_auto]">
+                    <Select
+                      value={row.materialId}
+                      onValueChange={(value) => updateMixComponent(row.id, { materialId: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={`Komponen ${index + 1}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allMaterials
+                          .filter((item) => item.id !== material?.id)
+                          .map((item) => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Input
+                      inputMode="decimal"
+                      value={row.qty}
+                      onChange={(e) => updateMixComponent(row.id, { qty: e.target.value })}
+                      placeholder="Qty"
+                    />
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeMixComponent(row.id)}
+                      disabled={mixRows.length === 1}
+                      aria-label="Hapus komponen"
+                    >
+                      ×
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="min">Stok minimum ({unit})</Label>
                 <Input
@@ -184,7 +311,10 @@ export function MaterialFormDialog({ open, onOpenChange, material }: Props) {
 
             <p className="text-xs text-muted-foreground">
               Harga per satuan: <span className="font-medium">{formatRpPrecise(costValue)}</span> / {unit} — dihitung
-              otomatis dari harga beli ÷ jumlah isi, dipakai untuk HPP & profit tiap menu.
+              {materialType === "mix"
+                ? " otomatis dari komposisi bahan campuran"
+                : " otomatis dari harga beli ÷ jumlah isi"}
+              , dipakai untuk HPP & profit tiap menu.
             </p>
 
             {!isEdit ? (

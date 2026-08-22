@@ -9,6 +9,8 @@ create table if not exists public.materials (
   purchase_price numeric,
   pack_size numeric,
   cost_per_unit numeric not null default 0,
+  material_type text not null default 'single' check (material_type in ('single', 'mix')),
+  mix_components jsonb not null default '[]'::jsonb,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
