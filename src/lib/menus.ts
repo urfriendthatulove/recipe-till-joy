@@ -24,8 +24,9 @@ export async function createMenu(input: MenuInput) {
   if (input.code?.trim()) item.code = input.code.trim().toUpperCase();
   if (input.directCost !== undefined) item.directCost = input.directCost;
 
-  if (isSupabaseEnabled && supabase) {
-    const { error } = await supabase.from("menus").upsert({
+  const client = supabase;
+  if (client) {
+    const { error } = await client.from("menus").upsert({
       id: item.id,
       code: item.code ?? null,
       name: item.name,
@@ -48,8 +49,9 @@ export async function createMenu(input: MenuInput) {
 
 export async function updateMenu(id: string, input: MenuInput) {
   const ts = nowISO();
-  if (isSupabaseEnabled && supabase) {
-    const { error } = await supabase.from("menus").update({
+  const client = supabase;
+  if (client) {
+    const { error } = await client.from("menus").update({
       code: input.code?.trim().toUpperCase() ?? "",
       name: input.name.trim(),
       category_id: input.categoryId,
@@ -77,8 +79,9 @@ export async function updateMenu(id: string, input: MenuInput) {
 
 export async function archiveMenu(id: string) {
   const ts = nowISO();
-  if (isSupabaseEnabled && supabase) {
-    const { error } = await supabase.from("menus").update({ is_active: false, updated_at: ts }).eq("id", id);
+  const client = supabase;
+  if (client) {
+    const { error } = await client.from("menus").update({ is_active: false, updated_at: ts }).eq("id", id);
     if (error) throw error;
     const current = await db.menus.get(id);
     if (current) await db.menus.put({ ...current, isActive: 0, updatedAt: ts });
@@ -89,8 +92,9 @@ export async function archiveMenu(id: string) {
 
 export async function restoreMenu(id: string) {
   const ts = nowISO();
-  if (isSupabaseEnabled && supabase) {
-    const { error } = await supabase.from("menus").update({ is_active: true, updated_at: ts }).eq("id", id);
+  const client = supabase;
+  if (client) {
+    const { error } = await client.from("menus").update({ is_active: true, updated_at: ts }).eq("id", id);
     if (error) throw error;
     const current = await db.menus.get(id);
     if (current) await db.menus.put({ ...current, isActive: 1, updatedAt: ts });
@@ -104,8 +108,9 @@ export async function createCategory(name: string) {
   const id = uid();
   const row = { id, name: name.trim(), sortOrder: count, createdAt: nowISO() };
 
-  if (isSupabaseEnabled && supabase) {
-    const { error } = await supabase.from("menu_categories").upsert({
+  const client = supabase;
+  if (client) {
+    const { error } = await client.from("menu_categories").upsert({
       id: row.id,
       name: row.name,
       sort_order: row.sortOrder,
@@ -121,8 +126,9 @@ export async function createCategory(name: string) {
 }
 
 export async function renameCategory(id: string, name: string) {
-  if (isSupabaseEnabled && supabase) {
-    const { error } = await supabase.from("menu_categories").update({ name: name.trim() }).eq("id", id);
+  const client = supabase;
+  if (client) {
+    const { error } = await client.from("menu_categories").update({ name: name.trim() }).eq("id", id);
     if (error) throw error;
     const current = await db.categories.get(id);
     if (current) await db.categories.put({ ...current, name: name.trim() });
@@ -135,8 +141,9 @@ export async function deleteCategory(id: string) {
   const used = await db.menus.where("categoryId").equals(id).count();
   if (used > 0) throw new Error("Kategori masih dipakai oleh menu lain");
 
-  if (isSupabaseEnabled && supabase) {
-    const { error } = await supabase.from("menu_categories").delete().eq("id", id);
+  const client = supabase;
+  if (client) {
+    const { error } = await client.from("menu_categories").delete().eq("id", id);
     if (error) throw error;
     await db.categories.delete(id);
     return;
@@ -148,9 +155,10 @@ export async function deleteCategory(id: string) {
 export async function saveRecipe(menuItemId: string, rows: { materialId: string; qty: number }[]) {
   const clean = rows.filter((r) => r.materialId && r.qty > 0);
 
-  if (isSupabaseEnabled && supabase) {
+  const client = supabase;
+  if (client) {
     const existing = await db.recipes.where("menuItemId").equals(menuItemId).toArray();
-    await Promise.all(existing.map((row) => supabase.from("recipes").delete().eq("id", row.id)));
+    await Promise.all(existing.map((row) => client.from("recipes").delete().eq("id", row.id)));
     await db.recipes.bulkDelete(existing.map((row) => row.id));
 
     const items: RecipeItem[] = clean.map((r) => ({
@@ -161,7 +169,7 @@ export async function saveRecipe(menuItemId: string, rows: { materialId: string;
     }));
 
     await Promise.all(items.map(async (item) => {
-      const { error } = await supabase.from("recipes").upsert({
+      const { error } = await client.from("recipes").upsert({
         id: item.id,
         menu_id: item.menuItemId,
         material_id: item.materialId,

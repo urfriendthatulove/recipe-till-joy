@@ -71,31 +71,11 @@ const movementFromSupabase = (row: any): StockMovement => ({
 });
 
 /**
- * Jangan pernah membersihkan data lokal secara otomatis saat user sedang aktif.
- * Query ini hanya bertugas memastikan local mirror tetap ada dan terisi saat DB lokal kosong.
+ * Selalu sinkronkan mirror lokal dari Supabase saat fitur ini aktif.
+ * Ini memastikan data yang dihapus di remote juga hilang dari UI lokal,
+ * termasuk halaman laporan yang membaca database Dexie.
  */
 export async function seedIfEmpty() {
-  const [materialCount, categoryCount, menuCount, recipeCount, saleCount, movementCount] = await Promise.all([
-    db.materials.count(),
-    db.categories.count(),
-    db.menus.count(),
-    db.recipes.count(),
-    db.sales.count(),
-    db.movements.count(),
-  ]);
-
-  const hasLocalData =
-    materialCount > 0 ||
-    categoryCount > 0 ||
-    menuCount > 0 ||
-    recipeCount > 0 ||
-    saleCount > 0 ||
-    movementCount > 0;
-
-  if (hasLocalData) {
-    return;
-  }
-
   if (!isSupabaseEnabled || !supabase) {
     return;
   }
@@ -116,30 +96,24 @@ export async function seedIfEmpty() {
   const saleRows = (salesData ?? []).map(saleFromSupabase);
   const movementRows = (movementsData ?? []).map(movementFromSupabase);
 
-  const hasRemoteData =
-    materialRows.length > 0 ||
-    categoryRows.length > 0 ||
-    menuRows.length > 0 ||
-    recipeRows.length > 0 ||
-    saleRows.length > 0 ||
-    movementRows.length > 0;
+  await db.transaction(
+    "rw",
+    ["materials", "categories", "menus", "recipes", "sales", "movements"],
+    async () => {
+      await db.movements.clear();
+      await db.sales.clear();
+      await db.recipes.clear();
+      await db.menus.clear();
+      await db.categories.clear();
+      await db.materials.clear();
 
-  if (!hasRemoteData) {
-    return;
-  }
-
-  await db.movements.clear();
-  await db.sales.clear();
-  await db.recipes.clear();
-  await db.menus.clear();
-  await db.categories.clear();
-  await db.materials.clear();
-
-  if (materialRows.length) await db.materials.bulkPut(materialRows);
-  if (categoryRows.length) await db.categories.bulkPut(categoryRows);
-  if (menuRows.length) await db.menus.bulkPut(menuRows);
-  if (recipeRows.length) await db.recipes.bulkPut(recipeRows);
-  if (saleRows.length) await db.sales.bulkPut(saleRows);
-  if (movementRows.length) await db.movements.bulkPut(movementRows);
+      if (materialRows.length) await db.materials.bulkPut(materialRows);
+      if (categoryRows.length) await db.categories.bulkPut(categoryRows);
+      if (menuRows.length) await db.menus.bulkPut(menuRows);
+      if (recipeRows.length) await db.recipes.bulkPut(recipeRows);
+      if (saleRows.length) await db.sales.bulkPut(saleRows);
+      if (movementRows.length) await db.movements.bulkPut(movementRows);
+    },
+  );
 }
 
