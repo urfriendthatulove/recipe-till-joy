@@ -17,7 +17,7 @@ export interface MaterialInput {
   openingStock?: number;
 }
 
-const mapMaterialRow = (m: RawMaterial) => ({
+const baseMaterialPayload = (m: RawMaterial) => ({
   id: m.id,
   name: m.name,
   supplier: m.supplier ?? null,
@@ -27,12 +27,64 @@ const mapMaterialRow = (m: RawMaterial) => ({
   purchase_price: m.purchasePrice ?? null,
   pack_size: m.packSize ?? null,
   cost_per_unit: m.costPerUnit,
-  material_type: m.materialType ?? "single",
-  mix_components: Array.isArray(m.mixComponents) ? m.mixComponents : [],
   is_active: m.isActive === 1,
   created_at: m.createdAt,
   updated_at: m.updatedAt,
 });
+
+const mapMaterialRow = (m: RawMaterial) => ({
+  ...baseMaterialPayload(m),
+  material_type: m.materialType ?? "single",
+  mix_components: Array.isArray(m.mixComponents) ? m.mixComponents : [],
+});
+
+async function upsertMaterialWithFallback(row: RawMaterial) {
+  if (!supabase) throw new Error("Supabase tidak aktif");
+
+  const typedPayload = mapMaterialRow(row);
+  const legacyPayload = baseMaterialPayload(row);
+
+  const attempts = [typedPayload, legacyPayload];
+
+  let lastError: unknown = null;
+  for (const payload of attempts) {
+    const { error } = await supabase.from("materials").upsert(payload, { onConflict: "id" });
+    if (!error) {
+      return;
+    }
+    lastError = error;
+
+    if (error.code !== "PGRST204" && !String(error.message).includes("column") && !String(error.message).includes("Could not find")) {
+      throw error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Gagal menyimpan bahan baku ke Supabase");
+}
+
+async function updateMaterialRemote(id: string, row: RawMaterial) {
+  if (!supabase) throw new Error("Supabase tidak aktif");
+
+  const typedPayload = mapMaterialRow(row);
+  const legacyPayload = baseMaterialPayload(row);
+
+  const attempts = [typedPayload, legacyPayload];
+
+  let lastError: unknown = null;
+  for (const payload of attempts) {
+    const { error } = await supabase.from("materials").update(payload).eq("id", id);
+    if (!error) {
+      return;
+    }
+    lastError = error;
+
+    if (error.code !== "PGRST204" && !String(error.message).includes("column") && !String(error.message).includes("Could not find")) {
+      throw error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Gagal memperbarui bahan baku di Supabase");
+}
 
 const materialFromSupabase = (row: any): RawMaterial => ({
   id: row.id,
@@ -86,8 +138,7 @@ export async function createMaterial(input: MaterialInput) {
   };
 
   if (isSupabaseEnabled && supabase) {
-    const { error } = await supabase.from("materials").upsert(mapMaterialRow(row), { onConflict: "id" });
-    if (error) throw error;
+    await upsertMaterialWithFallback(row);
 
     if (opening > 0) {
       const movement: StockMovement = {
@@ -177,19 +228,7 @@ export async function updateMaterial(id: string, input: MaterialInput) {
   };
 
   if (isSupabaseEnabled && supabase) {
-    const { error } = await supabase.from("materials").update({
-      name: row.name,
-      supplier: row.supplier ?? null,
-      unit: row.unit,
-      min_stock: row.minStock,
-      cost_per_unit: row.costPerUnit,
-      material_type: row.materialType ?? "single",
-      mix_components: row.mixComponents ?? [],
-      purchase_price: row.purchasePrice ?? null,
-      pack_size: row.packSize ?? null,
-      updated_at: ts,
-    }).eq("id", id);
-    if (error) throw error;
+    await updateMaterialRemote(id, row);
     await db.materials.put(row);
     return;
   }

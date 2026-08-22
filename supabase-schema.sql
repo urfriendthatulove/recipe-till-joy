@@ -16,6 +16,24 @@ create table if not exists public.materials (
   updated_at timestamptz not null default now()
 );
 
+alter table public.materials
+  add column if not exists material_type text default 'single';
+
+alter table public.materials
+  add column if not exists mix_components jsonb not null default '[]'::jsonb;
+
+update public.materials
+set material_type = 'single'
+where material_type is null;
+
+-- keep legacy rows compatible with newer app logic
+alter table public.materials
+  alter column material_type set not null,
+  alter column material_type set default 'single';
+
+alter table public.materials
+  alter column mix_components set default '[]'::jsonb;
+
 -- 2) stock_movements
 create table if not exists public.stock_movements (
   id uuid primary key default gen_random_uuid(),
