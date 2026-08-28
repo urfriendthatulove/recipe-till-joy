@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { History, Minus, Plus, Search, Trash2, TriangleAlert } from "lucide-react";
+import { History, Minus, PencilLine, Plus, Search, Trash2, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { MenuOrderDialog } from "@/components/kasir/MenuOrderDialog";
 import { ReceiptDialog } from "@/components/kasir/ReceiptDialog";
 import { SalesHistorySheet } from "@/components/kasir/SalesHistorySheet";
 import { Badge } from "@/components/ui/badge";
@@ -70,6 +71,7 @@ function KasirPage() {
 
 function KasirView() {
   const { role } = useAuth();
+  const isAdmin = role === "admin";
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState("all");
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -79,6 +81,9 @@ function KasirView() {
   const [saving, setSaving] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [receipt, setReceipt] = useState<Sale | null>(null);
+  const [menuDialogOpen, setMenuDialogOpen] = useState(false);
+  const [selectedMenu, setSelectedMenu] = useState<(typeof menus)[number] | null>(null);
+  const [editingLine, setEditingLine] = useState<CartLine | null>(null);
 
   const menus = useLiveQuery(async () => db.menus.toArray(), [], []);
   const categories = useLiveQuery(
@@ -137,21 +142,37 @@ function KasirView() {
     return out;
   }, [cart, recipes, materialById]);
 
-  function addToCart(menuItemId: string) {
+  function openMenuDialog(menuItemId: string) {
+    const menu = menuById.get(menuItemId) ?? null;
+    setEditingLine(null);
+    setSelectedMenu(menu);
+    setMenuDialogOpen(true);
+  }
+
+  function openEditLine(line: CartLine) {
+    const menu = menuById.get(line.menuItemId) ?? null;
+    setSelectedMenu(menu);
+    setEditingLine(line);
+    setMenuDialogOpen(true);
+  }
+
+  function addConfiguredLine(line: CartLine) {
     setCart((prev) => {
-      const found = prev.find((l) => l.menuItemId === menuItemId);
-      if (found) {
-        return prev.map((l) => (l.menuItemId === menuItemId ? { ...l, qty: l.qty + 1 } : l));
-      }
-      return [...prev, { menuItemId, qty: 1, discount: 0 }];
+      const exists = prev.some((item) => item.id === line.id);
+      if (!exists) return [...prev, line];
+      return prev.map((item) => (item.id === line.id ? line : item));
     });
   }
 
-  function setQty(menuItemId: string, qty: number) {
+  function removeLine(lineId: string) {
+    setCart((prev) => prev.filter((line) => line.id !== lineId));
+  }
+
+  function setQty(lineId: string, qty: number) {
     setCart((prev) =>
       qty <= 0
-        ? prev.filter((l) => l.menuItemId !== menuItemId)
-        : prev.map((l) => (l.menuItemId === menuItemId ? { ...l, qty } : l)),
+        ? prev.filter((l) => l.id !== lineId)
+        : prev.map((l) => (l.id === lineId ? { ...l, qty } : l)),
     );
   }
 
@@ -229,12 +250,14 @@ function KasirView() {
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {visibleMenus.map((m) => {
-                const inCart = cart.find((l) => l.menuItemId === m.id)?.qty ?? 0;
+                const inCart = cart
+                  .filter((l) => l.menuItemId === m.id)
+                  .reduce((sum, line) => sum + line.qty, 0);
                 return (
                   <button
                     key={m.id}
                     type="button"
-                    onClick={() => addToCart(m.id)}
+                    onClick={() => openMenuDialog(m.id)}
                     className="relative rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-primary hover:bg-secondary"
                   >
                     <p className="line-clamp-2 text-sm font-medium">{m.name}</p>
@@ -261,18 +284,27 @@ function KasirView() {
             ) : (
               <div className="mt-3 space-y-3">
                 {lines.map(({ line, menu, net }) => (
-                  <div key={line.menuItemId} className="flex items-start gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{menu.name}</p>
+                  <div key={line.id} className="flex items-start gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openEditLine(line)}
+                      className="min-w-0 flex-1 rounded-lg border border-transparent p-1 text-left transition-colors hover:border-border hover:bg-secondary/40"
+                    >
+                      <p className="truncate text-sm font-medium">{line.displayName}</p>
                       <p className="text-xs text-muted-foreground">{formatRp(menu.price)}</p>
-                    </div>
+                      {line.modifiers.length > 0 ? (
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          Modifier: {line.modifiers.join(", ")}
+                        </p>
+                      ) : null}
+                    </button>
                     <div className="flex items-center gap-1">
                       <Button
                         size="icon"
                         variant="ghost"
                         className="size-7"
                         aria-label={`Kurangi ${menu.name}`}
-                        onClick={() => setQty(menu.id, line.qty - 1)}
+                        onClick={() => setQty(line.id, line.qty - 1)}
                       >
                         <Minus className="size-3.5" />
                       </Button>
@@ -282,12 +314,30 @@ function KasirView() {
                         variant="ghost"
                         className="size-7"
                         aria-label={`Tambah ${menu.name}`}
-                        onClick={() => setQty(menu.id, line.qty + 1)}
+                        onClick={() => setQty(line.id, line.qty + 1)}
                       >
                         <Plus className="size-3.5" />
                       </Button>
                     </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      aria-label={`Hapus ${menu.name}`}
+                      onClick={() => removeLine(line.id)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
                     <span className="w-20 text-right text-sm tabular-nums">{formatRp(net)}</span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7"
+                      aria-label={`Ubah ${menu.name}`}
+                      onClick={() => openEditLine(line)}
+                    >
+                      <PencilLine className="size-3.5" />
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -358,8 +408,8 @@ function KasirView() {
                 <span>Total</span>
                 <span className="tabular-nums">{formatRp(total)}</span>
               </div>
-              <Row label="Estimasi HPP" value={formatRp(estCost)} />
-              <Row label="Estimasi laba" value={formatRp(total - estCost)} />
+              {isAdmin ? <Row label="Estimasi HPP" value={formatRp(estCost)} /> : null}
+              {isAdmin ? <Row label="Estimasi laba" value={formatRp(total - estCost)} /> : null}
             </div>
 
             <div className="mt-4 flex gap-2">
@@ -384,6 +434,14 @@ function KasirView() {
       </div>
 
       <SalesHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} canVoid={role === "admin"} />
+      <MenuOrderDialog
+        open={menuDialogOpen}
+        menu={selectedMenu}
+        initialLine={editingLine}
+        onOpenChange={setMenuDialogOpen}
+        onConfirm={addConfiguredLine}
+        onDelete={removeLine}
+      />
       <ReceiptDialog sale={receipt} onOpenChange={(v) => !v && setReceipt(null)} />
     </AppShell>
   );

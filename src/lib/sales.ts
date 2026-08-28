@@ -14,10 +14,15 @@ import { seedIfEmpty } from "./seed";
 import { isSupabaseEnabled, supabase } from "./supabase";
 
 export interface CartLine {
+  id: string;
   menuItemId: string;
   qty: number;
   /** diskon per baris dalam Rupiah (total baris, bukan per pcs) */
   discount: number;
+  temperature: "ice" | "hot";
+  sweetness: "sugar" | "less-sugar";
+  modifiers: string[];
+  displayName: string;
 }
 
 export interface SaleInput {
@@ -61,6 +66,10 @@ export async function createSale(input: SaleInput) {
         menu_item_id: line.menuItemId,
         qty: line.qty,
         discount: line.discount,
+        temperature: line.temperature,
+        sweetness: line.sweetness,
+        modifiers: line.modifiers,
+        line_name: line.displayName,
       })),
       p_payment_method: input.paymentMethod,
       p_bill_discount: input.discount ?? 0,
@@ -137,7 +146,7 @@ export async function createSale(input: SaleInput) {
         const item: SaleItem = {
           id: uid(),
           menuItemId: menu.id,
-          nameSnapshot: menu.name,
+          nameSnapshot: l.displayName,
           priceSnapshot: menu.price,
           qty: l.qty,
           discount,
