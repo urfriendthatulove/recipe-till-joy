@@ -1,4 +1,5 @@
 import { db, nowISO, uid, type MovementType, type RawMaterial, type StockMovement } from "./db";
+import { assertPermission } from "./auth";
 import { isSupabaseEnabled, supabase } from "./supabase";
 
 export interface MaterialInput {
@@ -110,6 +111,7 @@ const materialFromSupabase = (row: any): RawMaterial => ({
 });
 
 export async function createMaterial(input: MaterialInput) {
+  assertPermission("materials.manage", "Hanya admin yang dapat menambah bahan baku.");
   const ts = nowISO();
   const id = uid();
   const opening = input.openingStock ?? 0;
@@ -203,6 +205,7 @@ export async function createMaterial(input: MaterialInput) {
 }
 
 export async function updateMaterial(id: string, input: MaterialInput) {
+  assertPermission("materials.manage", "Hanya admin yang dapat mengubah bahan baku.");
   const ts = nowISO();
   const base = await db.materials.get(id);
   const materialType = input.materialType ?? base?.materialType ?? "single";
@@ -246,6 +249,7 @@ export async function updateMaterial(id: string, input: MaterialInput) {
 
 /** Nonaktifkan (soft delete) supaya riwayat transaksi lama tetap valid. */
 export async function archiveMaterial(id: string) {
+  assertPermission("materials.manage", "Hanya admin yang dapat mengarsipkan bahan baku.");
   const ts = nowISO();
   if (isSupabaseEnabled && supabase) {
     const { error } = await supabase.from("materials").update({ is_active: false, updated_at: ts }).eq("id", id);
@@ -258,6 +262,7 @@ export async function archiveMaterial(id: string) {
 }
 
 export async function restoreMaterial(id: string) {
+  assertPermission("materials.manage", "Hanya admin yang dapat mengaktifkan bahan baku.");
   const ts = nowISO();
   if (isSupabaseEnabled && supabase) {
     const { error } = await supabase.from("materials").update({ is_active: true, updated_at: ts }).eq("id", id);
@@ -278,6 +283,7 @@ export async function recordMovement(params: {
   refType?: StockMovement["refType"];
   refId?: string;
 }) {
+  assertPermission("materials.manage", "Hanya admin yang dapat mencatat perubahan stok bahan.");
   if (isSupabaseEnabled && supabase) {
     const mat = await db.materials.get(params.materialId);
     if (!mat) throw new Error("Bahan baku tidak ditemukan");

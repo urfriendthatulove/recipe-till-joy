@@ -13,14 +13,51 @@ const supabaseAnonKey =
 
 export const isSupabaseEnabled = Boolean(supabaseUrl && supabaseAnonKey);
 
+const SUPABASE_APP_SESSION_HEADER = "x-app-session";
+
+let appSessionToken: string | null = null;
+
+function buildRestHeaders(token: string | null) {
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers[SUPABASE_APP_SESSION_HEADER] = token;
+  }
+  return headers;
+}
+
 export const supabase = isSupabaseEnabled
   ? createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: buildRestHeaders(appSessionToken),
+      },
       auth: {
         persistSession: false,
         autoRefreshToken: false,
       },
     })
   : null;
+
+export function setSupabaseAppSessionToken(token: string | null) {
+  appSessionToken = token;
+  if (!supabase) return;
+
+  const nextHeaders = buildRestHeaders(token);
+  // Supabase JS keeps PostgREST headers on this internal client.
+  (supabase as unknown as { rest: { headers: Record<string, string> } }).rest.headers = {
+    ...(supabase as unknown as { rest: { headers: Record<string, string> } }).rest.headers,
+    ...nextHeaders,
+  };
+
+  if (!token) {
+    delete (supabase as unknown as { rest: { headers: Record<string, string> } }).rest.headers[
+      SUPABASE_APP_SESSION_HEADER
+    ];
+  }
+}
+
+export function getSupabaseAppSessionToken() {
+  return appSessionToken;
+}
 
 export type SupabaseTableName =
   | "materials"

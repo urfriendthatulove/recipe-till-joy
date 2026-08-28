@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AlertTriangle, Download, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import { toast } from "sonner";
 import {
   Bar,
@@ -16,6 +17,8 @@ import {
 } from "recharts";
 
 import { AppShell } from "@/components/AppShell";
+import { AccessDenied } from "@/components/auth/AccessDenied";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,7 +71,12 @@ export const Route = createFileRoute("/laporan")({
 });
 
 function LaporanPage() {
+  const { role } = useAuth();
   const [ready, setReady] = useState(false);
+
+  if (role !== "admin") {
+    return <AccessDenied message="Role barista tidak memiliki akses ke dashboard laporan." />;
+  }
 
   useEffect(() => {
     seedIfEmpty()
@@ -94,19 +102,23 @@ function Kpi({
   value,
   hint,
   tone = "default",
+  className,
+  style,
 }: {
   label: string;
   value: string;
   hint?: string;
   tone?: "default" | "positive" | "warning";
+  className?: string;
+  style?: CSSProperties;
 }) {
   return (
-    <Card>
+    <Card className={`rounded-2xl border-border/90 shadow-sm ${className ?? ""}`} style={style}>
       <CardContent className="p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
         <p
           className={
-            "mt-1 font-display text-xl font-semibold sm:text-2xl " +
+            "mt-2 font-display text-xl font-semibold sm:text-2xl " +
             (tone === "positive"
               ? "text-primary"
               : tone === "warning"
@@ -116,7 +128,7 @@ function Kpi({
         >
           {value}
         </p>
-        {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
+        {hint ? <p className="mt-2 text-xs text-muted-foreground">{hint}</p> : null}
       </CardContent>
     </Card>
   );
@@ -202,44 +214,59 @@ function LaporanContent() {
         </div>
       }
     >
-      <Tabs value={range} onValueChange={(v) => setRange(v as RangeKey)} className="mb-5">
-        <TabsList className="flex-wrap">
+      <Tabs value={range} onValueChange={(v) => setRange(v as RangeKey)} className="mb-5 stagger-item" style={{ "--item-index": 0 } as CSSProperties}>
+        <TabsList className="flex-wrap rounded-xl border border-border bg-background p-1">
           {(Object.keys(RANGE_LABEL) as RangeKey[]).map((k) => (
-            <TabsTrigger key={k} value={k}>
+            <TabsTrigger key={k} value={k} className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               {RANGE_LABEL[k]}
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="stagger-fade grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi
           label="Omzet bersih"
           value={formatRp(sum.omzet)}
           hint={`${sum.nota} nota • ${formatNumber(sum.itemTerjual)} item`}
+          className="stagger-item"
+          style={{ "--item-index": 1 } as CSSProperties}
         />
-        <Kpi label="HPP bahan" value={formatRp(sum.hpp)} hint={`Diskon ${formatRp(sum.diskon)}`} />
+        <Kpi
+          label="HPP bahan"
+          value={formatRp(sum.hpp)}
+          hint={`Diskon ${formatRp(sum.diskon)}`}
+          className="stagger-item"
+          style={{ "--item-index": 2 } as CSSProperties}
+        />
         <Kpi
           label="Laba kotor"
           value={formatRp(sum.laba)}
           hint={`Margin ${sum.margin.toFixed(1)}%`}
           tone="positive"
+          className="stagger-item"
+          style={{ "--item-index": 3 } as CSSProperties}
         />
         <Kpi
           label="Rata-rata / nota"
           value={formatRp(sum.avgNota)}
           hint={voidedCount ? `${voidedCount} nota dibatalkan` : "Tidak ada nota batal"}
+          className="stagger-item"
+          style={{ "--item-index": 4 } as CSSProperties}
         />
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
+      <div className="stagger-fade mt-4 grid gap-4 lg:grid-cols-[2fr_1fr]">
+        <Card className="stagger-item rounded-2xl border-border/90 shadow-sm" style={{ "--item-index": 5 } as CSSProperties}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <TrendingUp className="size-4 text-primary" /> Omzet & laba harian
             </CardTitle>
+            <span className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground">
+              Live Overview
+            </span>
           </CardHeader>
-          <CardContent className="h-64">
+          <CardContent className="h-[290px]">
             {sum.nota === 0 ? (
               <p className="py-16 text-center text-sm text-muted-foreground">
                 Belum ada transaksi pada rentang ini.
@@ -285,7 +312,7 @@ function LaporanContent() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="stagger-item rounded-2xl border-border/90 shadow-sm" style={{ "--item-index": 6 } as CSSProperties}>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Metode pembayaran</CardTitle>
           </CardHeader>
@@ -302,7 +329,7 @@ function LaporanContent() {
                       <span className="text-muted-foreground">{formatRp(v.total)}</span>
                     </div>
                     <div className="mt-1 h-2 overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                      <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {v.nota} nota • {pct.toFixed(0)}%
@@ -321,12 +348,12 @@ function LaporanContent() {
         </Card>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Card>
+      <div className="stagger-fade mt-4 grid gap-4 lg:grid-cols-[1.3fr_1fr]">
+        <Card className="stagger-item rounded-2xl border-border/90 shadow-sm" style={{ "--item-index": 7 } as CSSProperties}>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Menu terlaris</CardTitle>
           </CardHeader>
-          <CardContent className="h-64">
+          <CardContent className="h-[290px]">
             {ranking.length === 0 ? (
               <p className="py-16 text-center text-sm text-muted-foreground">Belum ada penjualan.</p>
             ) : (
@@ -361,7 +388,7 @@ function LaporanContent() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="stagger-item rounded-2xl border-border/90 shadow-sm" style={{ "--item-index": 8 } as CSSProperties}>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Pemakaian bahan baku</CardTitle>
           </CardHeader>
@@ -402,7 +429,7 @@ function LaporanContent() {
         </Card>
       </div>
 
-      <Card className="mt-4">
+      <Card className="stagger-item mt-4 rounded-2xl border-border/90 shadow-sm" style={{ "--item-index": 9 } as CSSProperties}>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <AlertTriangle className="size-4 text-destructive" /> Bahan perlu restock
@@ -424,7 +451,7 @@ function LaporanContent() {
         </CardContent>
       </Card>
 
-      <Card className="mt-4">
+      <Card className="stagger-item mt-4 rounded-2xl border-border/90 shadow-sm" style={{ "--item-index": 10 } as CSSProperties}>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Rincian menu</CardTitle>
         </CardHeader>
@@ -437,7 +464,7 @@ function LaporanContent() {
                 <TableHead className="text-right">Omzet</TableHead>
                 <TableHead className="text-right">HPP</TableHead>
                 <TableHead className="text-right">Laba</TableHead>
-                <TableHead className="text-right">Margin</TableHead>
+                <TableHead className="text-right">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -448,18 +475,49 @@ function LaporanContent() {
                   </TableCell>
                 </TableRow>
               ) : (
-                ranking.map((r) => (
-                  <TableRow key={r.menuItemId}>
-                    <TableCell className="font-medium">{r.name}</TableCell>
+                ranking.map((r) => {
+                  const margin = r.omzet > 0 ? (r.laba / r.omzet) * 100 : 0;
+                  const health = margin >= 55 ? "Sangat baik" : margin >= 35 ? "Stabil" : "Perlu evaluasi";
+                  const initials = r.name
+                    .split(" ")
+                    .slice(0, 2)
+                    .map((part) => part[0]?.toUpperCase() ?? "")
+                    .join("");
+
+                  return (
+                  <TableRow key={r.menuItemId} className="border-b border-border/70 transition-colors hover:bg-secondary/70">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                          {initials || "MN"}
+                        </span>
+                        <div>
+                          <p className="font-medium text-foreground">{r.name}</p>
+                          <p className="text-xs text-muted-foreground">Performa {margin.toFixed(0)}% margin</p>
+                        </div>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">{formatNumber(r.qty)}</TableCell>
                     <TableCell className="text-right">{formatRp(r.omzet)}</TableCell>
                     <TableCell className="text-right">{formatRp(r.hpp)}</TableCell>
                     <TableCell className="text-right">{formatRp(r.laba)}</TableCell>
                     <TableCell className="text-right">
-                      {r.omzet > 0 ? `${((r.laba / r.omzet) * 100).toFixed(0)}%` : "—"}
+                      <span
+                        className={
+                          "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold " +
+                          (margin >= 55
+                            ? "bg-primary text-primary-foreground"
+                            : margin >= 35
+                              ? "bg-secondary text-foreground"
+                              : "bg-destructive/12 text-destructive")
+                        }
+                      >
+                        {health}
+                      </span>
                     </TableCell>
                   </TableRow>
-                ))
+                );
+              })
               )}
             </TableBody>
           </Table>

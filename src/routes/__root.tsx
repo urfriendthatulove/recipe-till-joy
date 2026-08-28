@@ -9,6 +9,8 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
+import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
+import { LoginScreen } from "@/components/auth/LoginScreen";
 import { Toaster } from "@/components/ui/sonner";
 
 
@@ -120,10 +122,30 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <AuthProvider>
+        <AuthenticatedApp />
+      </AuthProvider>
       <Toaster position="top-center" richColors />
     </QueryClientProvider>
   );
+}
+
+function AuthenticatedApp() {
+  const { loading, isAuthenticated } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <p className="text-sm text-muted-foreground">Menyiapkan sesi aplikasi...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
+
+  // Required: nested routes render here. Removing <Outlet /> breaks all child routes.
+  return <Outlet />;
 }
 

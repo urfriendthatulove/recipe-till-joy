@@ -1,4 +1,5 @@
 import { db, nowISO, uid, type MenuItem, type RawMaterial, type RecipeItem } from "./db";
+import { assertPermission } from "./auth";
 import { isSupabaseEnabled, supabase } from "./supabase";
 
 export interface MenuInput {
@@ -10,6 +11,7 @@ export interface MenuInput {
 }
 
 export async function createMenu(input: MenuInput) {
+  assertPermission("menus.manage", "Hanya admin yang dapat menambah menu.");
   const ts = nowISO();
   const id = uid();
   const item: MenuItem = {
@@ -48,6 +50,7 @@ export async function createMenu(input: MenuInput) {
 }
 
 export async function updateMenu(id: string, input: MenuInput) {
+  assertPermission("menus.manage", "Hanya admin yang dapat mengubah menu.");
   const ts = nowISO();
   const client = supabase;
   if (client) {
@@ -78,6 +81,7 @@ export async function updateMenu(id: string, input: MenuInput) {
 }
 
 export async function archiveMenu(id: string) {
+  assertPermission("menus.manage", "Hanya admin yang dapat mengarsipkan menu.");
   const ts = nowISO();
   const client = supabase;
   if (client) {
@@ -91,6 +95,7 @@ export async function archiveMenu(id: string) {
 }
 
 export async function restoreMenu(id: string) {
+  assertPermission("menus.manage", "Hanya admin yang dapat mengaktifkan menu.");
   const ts = nowISO();
   const client = supabase;
   if (client) {
@@ -104,6 +109,7 @@ export async function restoreMenu(id: string) {
 }
 
 export async function createCategory(name: string) {
+  assertPermission("menus.manage", "Hanya admin yang dapat menambah kategori.");
   const count = await db.categories.count();
   const id = uid();
   const row = { id, name: name.trim(), sortOrder: count, createdAt: nowISO() };
@@ -126,6 +132,7 @@ export async function createCategory(name: string) {
 }
 
 export async function renameCategory(id: string, name: string) {
+  assertPermission("menus.manage", "Hanya admin yang dapat mengubah kategori.");
   const client = supabase;
   if (client) {
     const { error } = await client.from("menu_categories").update({ name: name.trim() }).eq("id", id);
@@ -138,6 +145,7 @@ export async function renameCategory(id: string, name: string) {
 }
 
 export async function deleteCategory(id: string) {
+  assertPermission("menus.manage", "Hanya admin yang dapat menghapus kategori.");
   const used = await db.menus.where("categoryId").equals(id).count();
   if (used > 0) throw new Error("Kategori masih dipakai oleh menu lain");
 
@@ -153,6 +161,7 @@ export async function deleteCategory(id: string) {
 }
 
 export async function saveRecipe(menuItemId: string, rows: { materialId: string; qty: number }[]) {
+  assertPermission("menus.manage", "Hanya admin yang dapat menyimpan resep.");
   const clean = rows.filter((r) => r.materialId && r.qty > 0);
 
   const client = supabase;

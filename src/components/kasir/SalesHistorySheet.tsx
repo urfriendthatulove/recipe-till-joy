@@ -18,9 +18,11 @@ import { PAYMENT_LABEL, voidSale } from "@/lib/sales";
 export function SalesHistorySheet({
   open,
   onOpenChange,
+  canVoid,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  canVoid: boolean;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const sales = useLiveQuery(
@@ -68,7 +70,7 @@ export function SalesHistorySheet({
                     </li>
                   ))}
                 </ul>
-                {!s.voided ? (
+                {!s.voided && canVoid ? (
                   <Button
                     size="sm"
                     variant="outline"

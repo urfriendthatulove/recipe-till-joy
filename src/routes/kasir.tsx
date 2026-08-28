@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { ReceiptDialog } from "@/components/kasir/ReceiptDialog";
 import { SalesHistorySheet } from "@/components/kasir/SalesHistorySheet";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +69,7 @@ function KasirPage() {
 }
 
 function KasirView() {
+  const { role } = useAuth();
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState("all");
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -381,7 +383,7 @@ function KasirView() {
         </aside>
       </div>
 
-      <SalesHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} />
+      <SalesHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} canVoid={role === "admin"} />
       <ReceiptDialog sale={receipt} onOpenChange={(v) => !v && setReceipt(null)} />
     </AppShell>
   );

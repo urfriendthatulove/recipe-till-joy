@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
-  AlertTriangle,
   Archive,
   PackagePlus,
   PencilLine,
@@ -14,6 +13,8 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
+import { AccessDenied } from "@/components/auth/AccessDenied";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { MaterialFormDialog } from "@/components/materials/MaterialFormDialog";
 import { StockHistorySheet } from "@/components/materials/StockHistorySheet";
 import { StockMovementDialog } from "@/components/materials/StockMovementDialog";
@@ -53,7 +54,12 @@ export const Route = createFileRoute("/")({
 });
 
 function BahanBakuPage() {
+  const { role } = useAuth();
   const [ready, setReady] = useState(false);
+
+  if (role !== "admin") {
+    return <AccessDenied message="Role barista hanya bisa menginput transaksi di modul Kasir." />;
+  }
 
   // Dexie hanya tersedia di browser; seed dijalankan sekali saat DB kosong.
   useEffect(() => {
@@ -113,6 +119,7 @@ function MaterialsView() {
   const active = materials.filter((m) => m.isActive === 1);
   const low = active.filter((m) => m.currentStock <= m.minStock);
   const inventoryValue = active.reduce((s, m) => s + m.currentStock * m.costPerUnit, 0);
+  const zeroStockCount = low.filter((m) => m.currentStock <= 0).length;
 
   // selalu pakai versi terbaru dari DB agar angka stok di dialog tidak basi
   const selectedLive = selected ? (materials.find((m) => m.id === selected.id) ?? selected) : null;
@@ -135,16 +142,75 @@ function MaterialsView() {
     <AppShell
       title="Master Bahan Baku"
       description="Modul A — stok, supplier, restock & kartu stok"
-      actions={
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={() => openForm(null)}
-            className="h-11 rounded-xl bg-[#7a4a2d] text-[#fffaf4] hover:bg-[#6c4027]"
-          >
-            <Plus className="size-4" />
-            Bahan baru
-          </Button>
-        </div>
+      notificationCount={low.length}
+      notificationContent={
+        low.length > 0 ? (
+          <div>
+            <div className="px-3 py-2">
+              <p className="text-sm font-semibold text-foreground">Jumlah bahan menipis: {low.length}</p>
+              <p className="text-xs text-muted-foreground">
+                {zeroStockCount > 0
+                  ? `${zeroStockCount} bahan sudah habis dan perlu diprioritaskan.`
+                  : "Semua bahan ini sudah menyentuh atau di bawah batas minimum."}
+              </p>
+            </div>
+            <div className="max-h-72 space-y-2 overflow-y-auto px-1 py-1">
+              {low.map((m) => {
+                const isEmpty = m.currentStock <= 0;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => openMove(m)}
+                    className={
+                      "flex w-full items-start justify-between rounded-xl border px-3 py-2 text-left transition-colors hover:bg-secondary " +
+                      (isEmpty
+                        ? "border-destructive/30 bg-destructive/5"
+                        : "border-border bg-background")
+                    }
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{m.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Sisa {formatNumber(m.currentStock)} {m.unit} • Min {formatNumber(m.minStock)} {m.unit}
+                      </p>
+                    </div>
+                    <span
+                      className={
+                        "rounded-full px-2 py-1 text-[11px] font-semibold " +
+                        (isEmpty
+                          ? "bg-destructive/12 text-destructive"
+                          : "bg-primary/10 text-primary")
+                      }
+                    >
+                      {isEmpty ? "Stok 0" : "Restock"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="px-3 py-4 text-sm text-muted-foreground">
+            Semua bahan masih di atas batas minimum.
+          </div>
+        )
+      }
+      notificationFooter={
+        low.length > 0 ? (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-muted-foreground">Klik item untuk langsung restock.</span>
+            <Button
+              size="sm"
+              onClick={() => {
+                if (low[0]) openMove(low[0]);
+              }}
+              className="h-8 rounded-lg bg-primary px-3 text-primary-foreground hover:bg-primary/90"
+            >
+              Restock pertama
+            </Button>
+          </div>
+        ) : null
       }
     >
       <div className="mb-6 grid gap-3 md:grid-cols-3">
@@ -152,22 +218,6 @@ function MaterialsView() {
         <Stat label="Nilai stok (HPP)" value={formatRp(inventoryValue)} />
         <Stat label="Bahan menipis" value={`${low.length}`} tone={low.length > 0 ? "warn" : "ok"} />
       </div>
-
-      {low.length > 0 && !showArchived ? (
-        <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
-          <AlertTriangle className="size-4 text-warning" />
-          <span className="font-medium">Perlu restock:</span>
-          {low.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => openMove(m)}
-              className="rounded-md bg-card px-2 py-0.5 text-xs font-medium underline-offset-2 hover:underline"
-            >
-              {m.name} ({formatNumber(m.currentStock)} {m.unit})
-            </button>
-          ))}
-        </div>
-      ) : null}
 
       <div className="mb-4 flex w-full items-center gap-2 overflow-hidden rounded-lg border border-border bg-[#f2efe9] p-1 shadow-sm">
         {[
@@ -191,8 +241,8 @@ function MaterialsView() {
 
       {activeTab === "stock" ? (
         <>
-          <div className="mb-4">
-            <div className="relative">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="relative w-full lg:w-1/2">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={query}
@@ -201,6 +251,13 @@ function MaterialsView() {
                 className="h-12 rounded-xl border-border bg-card pl-9 text-base shadow-sm"
               />
             </div>
+            <Button
+              onClick={() => openForm(null)}
+              className="h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <Plus className="size-4" />
+              Bahan baru
+            </Button>
           </div>
 
           <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">

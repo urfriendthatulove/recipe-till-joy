@@ -92,3 +92,37 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Supabase Login Setup
+
+1. Buat file `.env` dari root project.
+2. Isi variabel berikut:
+
+```env
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+3. Jalankan isi file [supabase-schema.sql](supabase-schema.sql) di SQL Editor Supabase.
+
+Script tersebut akan otomatis:
+
+- Mengaktifkan `pgcrypto` untuk hash password (`bcrypt`).
+- Membuat RPC login aman: `app_login`, `app_restore_session`, `app_logout`.
+- Membuat session token yang disimpan dalam bentuk hash di database.
+- Menerapkan RLS berbasis role (`admin` vs `user`) di semua tabel bisnis.
+
+Akun bawaan yang dibuat oleh script:
+
+- Username: `admin` | Password: `admin123` | Role: manager (admin)
+- Username: `user` | Password: `user123` | Role: barista (user)
+
+Permission role:
+
+- Admin: bisa CRUD penuh pada semua modul.
+- User: hanya bisa input transaksi di modul kasir.
+
+Catatan:
+
+- Nilai role wajib huruf kecil: `admin` atau `user`.
+- Untuk migrasi dari skema lama, script otomatis mengonversi kolom password plain text ke `password_hash`.

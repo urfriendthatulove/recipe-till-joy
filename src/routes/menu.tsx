@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
+import { AccessDenied } from "@/components/auth/AccessDenied";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { MenuFormDialog } from "@/components/menu/MenuFormDialog";
 import { RecipeSheet } from "@/components/menu/RecipeSheet";
 import { Badge } from "@/components/ui/badge";
@@ -51,7 +53,12 @@ export const Route = createFileRoute("/menu")({
 });
 
 function MenuPage() {
+  const { role } = useAuth();
   const [ready, setReady] = useState(false);
+
+  if (role !== "admin") {
+    return <AccessDenied message="Role barista tidak memiliki akses ke master menu dan resep." />;
+  }
 
   useEffect(() => {
     seedIfEmpty()
