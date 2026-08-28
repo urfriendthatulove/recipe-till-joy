@@ -203,6 +203,52 @@ function LaporanContent() {
     <AppShell
       title="Dashboard & Laporan"
       description={`Ringkasan performa penjualan — ${RANGE_LABEL[range]}`}
+      notificationCount={lowStock.length}
+      notificationContent={
+        lowStock.length > 0 ? (
+          <div>
+            <div className="px-3 py-2">
+              <p className="text-sm font-semibold text-foreground">Bahan perlu restock: {lowStock.length}</p>
+              <p className="text-xs text-muted-foreground">
+                Prioritaskan bahan dengan stok paling kritis agar operasional tidak terganggu.
+              </p>
+            </div>
+            <div className="max-h-72 space-y-2 overflow-y-auto px-1 py-1">
+              {lowStock.map((m) => {
+                const isEmpty = m.currentStock <= 0;
+                return (
+                  <div
+                    key={m.id}
+                    className={
+                      "flex items-start justify-between rounded-xl border px-3 py-2 " +
+                      (isEmpty ? "border-destructive/30 bg-destructive/5" : "border-border bg-background")
+                    }
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{m.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Sisa {formatNumber(m.currentStock)} {m.unit} • Min {formatNumber(m.minStock)} {m.unit}
+                      </p>
+                    </div>
+                    <span
+                      className={
+                        "rounded-full px-2 py-1 text-[11px] font-semibold " +
+                        (isEmpty ? "bg-destructive/12 text-destructive" : "bg-primary/10 text-primary")
+                      }
+                    >
+                      {isEmpty ? "Stok 0" : "Menipis"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="px-3 py-4 text-sm text-muted-foreground">
+            Semua bahan masih di atas batas minimum.
+          </div>
+        )
+      }
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={exportPenjualan}>
@@ -430,28 +476,6 @@ function LaporanContent() {
       </div>
 
       <Card className="stagger-item mt-4 rounded-2xl border-border/90 shadow-sm" style={{ "--item-index": 9 } as CSSProperties}>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <AlertTriangle className="size-4 text-destructive" /> Bahan perlu restock
-            <Badge variant="secondary">{lowStock.length}</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {lowStock.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Semua stok masih di atas batas minimum.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {lowStock.map((m) => (
-                <Badge key={m.id} variant="destructive" className="font-normal">
-                  {m.name}: {formatNumber(m.currentStock)} {m.unit} (min {formatNumber(m.minStock)})
-                </Badge>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="stagger-item mt-4 rounded-2xl border-border/90 shadow-sm" style={{ "--item-index": 10 } as CSSProperties}>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Rincian menu</CardTitle>
         </CardHeader>
