@@ -129,6 +129,15 @@ function KasirView() {
     0,
   );
 
+  function resolveErrorMessage(err: unknown, fallback: string) {
+    if (err instanceof Error && err.message) return err.message;
+    if (err && typeof err === "object" && "message" in err) {
+      const message = (err as { message?: unknown }).message;
+      if (typeof message === "string" && message.trim()) return message;
+    }
+    return fallback;
+  }
+
   /** Bahan yang akan minus kalau keranjang ini dibayar. */
   const shortages = useMemo(() => {
     const need = materialUsage(cart, recipes);
@@ -199,7 +208,7 @@ function KasirView() {
       setReceipt(sale);
       resetCart();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyimpan transaksi");
+      toast.error(resolveErrorMessage(e, "Gagal menyimpan transaksi"));
     } finally {
       setSaving(false);
     }

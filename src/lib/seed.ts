@@ -79,9 +79,9 @@ const movementFromSupabase = (row: any): StockMovement => ({
 });
 
 /**
- * Selalu sinkronkan mirror lokal dari Supabase saat fitur ini aktif.
- * Ini memastikan data yang dihapus di remote juga hilang dari UI lokal,
- * termasuk halaman laporan yang membaca database Dexie.
+ * Sinkronkan mirror lokal dari Supabase saat fitur ini aktif.
+ * Penting: jangan hapus data lokal terlebih dahulu, agar transaksi lokal
+ * (mis. fallback ketika RPC belum tersedia) tetap muncul di laporan.
  */
 export async function seedIfEmpty() {
   if (!isSupabaseEnabled || !supabase) {
@@ -108,13 +108,6 @@ export async function seedIfEmpty() {
     "rw",
     ["materials", "categories", "menus", "recipes", "sales", "movements"],
     async () => {
-      await db.movements.clear();
-      await db.sales.clear();
-      await db.recipes.clear();
-      await db.menus.clear();
-      await db.categories.clear();
-      await db.materials.clear();
-
       if (materialRows.length) await db.materials.bulkPut(materialRows);
       if (categoryRows.length) await db.categories.bulkPut(categoryRows);
       if (menuRows.length) await db.menus.bulkPut(menuRows);

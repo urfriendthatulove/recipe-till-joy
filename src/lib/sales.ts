@@ -33,77 +33,26 @@ export interface SaleInput {
   note?: string;
 }
 
-async function nextSaleNumber(date = new Date()) {
-  const ymd = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(
-    date.getDate(),
-  ).padStart(2, "0")}`;
-  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString();
-  const count = await db.sales.where("createdAt").aboveOrEqual(start).count();
-  return `QNS-${ymd}-${String(count + 1).padStart(4, "0")}`;
+function asErrorMessage(err: unknown, fallback: string) {
+  if (err instanceof Error && err.message) return err.message;
+  if (err && typeof err === "object" && "message" in err) {
+    const message = (err as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return fallback;
 }
 
-export function materialUsage(
-  lines: CartLine[],
-  recipes: RecipeItem[],
-): Map<string, number> {
-  const need = new Map<string, number>();
-  for (const line of lines) {
-    for (const r of recipes.filter((x) => x.menuItemId === line.menuItemId)) {
-      need.set(r.materialId, (need.get(r.materialId) ?? 0) + r.qty * line.qty);
-    }
-  }
-  return need;
+function isLegacyCreateSaleRpcSignature(err: unknown) {
+  const message = asErrorMessage(err, "").toLowerCase();
+  return (
+    message.includes("app_create_sale") &&
+    (message.includes("could not find") ||
+      message.includes("does not exist") ||
+      message.includes("no function matches"))
+  );
 }
 
-export async function createSale(input: SaleInput) {
-  assertPermission("sales.create", "Akun ini tidak memiliki izin untuk mencatat transaksi.");
-  const clean = input.lines.filter((l) => l.qty > 0);
-  if (clean.length === 0) throw new Error("Keranjang masih kosong");
-
-  if (isSupabaseEnabled && supabase) {
-    const { data, error } = await supabase.rpc("app_create_sale", {
-      p_lines: clean.map((line) => ({
-        menu_item_id: line.menuItemId,
-        qty: line.qty,
-        discount: line.discount,
-        temperature: line.temperature,
-        sweetness: line.sweetness,
-        modifiers: line.modifiers,
-        line_name: line.displayName,
-      })),
-      p_payment_method: input.paymentMethod,
-      p_bill_discount: input.discount ?? 0,
-      p_note: input.note ?? null,
-    });
-
-    if (error) throw error;
-
-    const row = Array.isArray(data) ? data[0] : data;
-    if (!row) {
-      throw new Error("Gagal menyimpan transaksi");
-    }
-
-    const sale: Sale = {
-      id: row.id,
-      saleNumber: row.sale_number,
-      createdAt: row.created_at,
-      items: Array.isArray(row.items)
-        ? (row.items as SaleItem[])
-        : [],
-      subtotal: Number(row.subtotal ?? 0),
-      discount: Number(row.discount ?? 0),
-      netSales: Number(row.net_sales ?? 0),
-      totalCost: Number(row.total_cost ?? 0),
-      profit: Number(row.profit ?? 0),
-      paymentMethod: row.payment_method,
-      note: row.note ?? undefined,
-      voided: row.voided ? 1 : 0,
-    };
-
-    await seedIfEmpty();
-    return sale;
-  }
-
+async function createSaleLocally(clean: CartLine[], input: SaleInput) {
   return db.transaction(
     "rw",
     db.sales,
@@ -201,6 +150,113 @@ export async function createSale(input: SaleInput) {
       return sale;
     },
   );
+}
+
+async function nextSaleNumber(date = new Date()) {
+  const ymd = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(
+    date.getDate(),
+  ).padStart(2, "0")}`;
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString();
+  const count = await db.sales.where("createdAt").aboveOrEqual(start).count();
+  return `QNS-${ymd}-${String(count + 1).padStart(4, "0")}`;
+}
+
+export function materialUsage(
+  lines: CartLine[],
+  recipes: RecipeItem[],
+): Map<string, number> {
+  const need = new Map<string, number>();
+  for (const line of lines) {
+    for (const r of recipes.filter((x) => x.menuItemId === line.menuItemId)) {
+      need.set(r.materialId, (need.get(r.materialId) ?? 0) + r.qty * line.qty);
+    }
+  }
+  return need;
+}
+
+export async function createSale(input: SaleInput) {
+  assertPermission("sales.create", "Akun ini tidak memiliki izin untuk mencatat transaksi.");
+  const clean = input.lines.filter((l) => l.qty > 0);
+  if (clean.length === 0) throw new Error("Keranjang masih kosong");
+
+  if (isSupabaseEnabled && supabase) {
+    const rpcPayload = {
+      p_lines: clean.map((line) => ({
+        menu_item_id: line.menuItemId,
+        qty: line.qty,
+        discount: line.discount,
+        temperature: line.temperature,
+        sweetness: line.sweetness,
+        modifiers: line.modifiers,
+        line_name: line.displayName,
+      })),
+      p_payment_method: input.paymentMethod,
+      p_bill_discount: input.discount ?? 0,
+      p_note: input.note ?? null,
+    };
+
+    let { data, error } = await supabase.rpc("app_create_sale", rpcPayload);
+
+    // Compatibility path for older SQL function variants without p_note argument.
+    if (error && isLegacyCreateSaleRpcSignature(error)) {
+      ({ data, error } = await supabase.rpc("app_create_sale", {
+        p_lines: rpcPayload.p_lines,
+        p_payment_method: rpcPayload.p_payment_method,
+        p_bill_discount: rpcPayload.p_bill_discount,
+      }));
+    }
+
+    if (error && isLegacyCreateSaleRpcSignature(error)) {
+      console.warn(
+        "RPC app_create_sale tidak ditemukan di Supabase schema cache. Menggunakan transaksi lokal.",
+      );
+      return createSaleLocally(clean, input);
+    }
+
+    if (error) {
+      throw new Error(asErrorMessage(error, "Gagal menyimpan transaksi"));
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) {
+      throw new Error("Gagal menyimpan transaksi");
+    }
+
+    const rawItems = (row as { items?: unknown }).items;
+    let parsedItems: SaleItem[] = [];
+    if (Array.isArray(rawItems)) {
+      parsedItems = rawItems as SaleItem[];
+    } else if (typeof rawItems === "string") {
+      try {
+        const json = JSON.parse(rawItems);
+        if (Array.isArray(json)) {
+          parsedItems = json as SaleItem[];
+        }
+      } catch {
+        parsedItems = [];
+      }
+    }
+
+    const sale: Sale = {
+      id: row.id,
+      saleNumber: row.sale_number,
+      createdAt: row.created_at,
+      items: parsedItems,
+      subtotal: Number(row.subtotal ?? 0),
+      discount: Number(row.discount ?? 0),
+      netSales: Number(row.net_sales ?? 0),
+      totalCost: Number(row.total_cost ?? 0),
+      profit: Number(row.profit ?? 0),
+      paymentMethod: row.payment_method,
+      note: row.note ?? undefined,
+      voided: row.voided ? 1 : 0,
+    };
+
+    await seedIfEmpty();
+    return sale;
+  }
+
+  return createSaleLocally(clean, input);
 }
 
 export async function voidSale(saleId: string, reason?: string) {
