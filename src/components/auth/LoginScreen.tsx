@@ -42,7 +42,7 @@ export function LoginScreen() {
             <Coffee className="size-6" />
           </div>
           <CardTitle className="font-display text-2xl">Rakyat Coffee's POS</CardTitle>
-          <CardDescription>Login sesuai role untuk melanjutkan ke sistem kasir.</CardDescription>
+          <CardDescription>Masukkan Credential dibawah.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
@@ -52,8 +52,9 @@ export function LoginScreen() {
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin atau user"
+                placeholder="input username"
                 autoFocus
+                className="shadow-none"
               />
             </div>
             <div className="space-y-2">
@@ -63,7 +64,8 @@ export function LoginScreen() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Masukkan password"
+                placeholder="input password"
+                className="shadow-none"
               />
             </div>
 
