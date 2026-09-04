@@ -38,7 +38,7 @@ function buildThermalRow(label: string, value: string) {
 
 function printReceiptViaIminSdk(printer: IminPrinterInstance, sale: Sale) {
   printer.initPrinter(printer.PrintConnectType.SPI);
-  printer.setPageFormat(0);
+  printer.setPageFormat(1);
   printer.setTextWidth(IMIN_PAGE_WIDTH_DOTS);
   printer.setLeftMargin(0);
 
