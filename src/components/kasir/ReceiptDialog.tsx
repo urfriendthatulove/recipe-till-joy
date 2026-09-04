@@ -59,8 +59,8 @@ function buildReceiptHtml(sale: Sale) {
             background: #fff;
             color: #111;
             font-family: "Courier New", monospace;
-            font-size: 11px;
-            line-height: 1.3;
+            font-size: 13px;
+            line-height: 1.35;
           }
 
           body {
@@ -81,14 +81,14 @@ function buildReceiptHtml(sale: Sale) {
           }
 
           .brand {
-            font-size: 15px;
+            font-size: 18px;
             font-weight: 700;
             letter-spacing: 0.08em;
             margin: 2px 0 6px;
           }
 
           .title {
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 700;
             margin-bottom: 4px;
           }
@@ -136,14 +136,14 @@ function buildReceiptHtml(sale: Sale) {
           }
 
           .row.total {
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 700;
             padding-top: 2px;
           }
 
           .footer {
             text-align: center;
-            font-size: 10px;
+            font-size: 11px;
           }
 
           @media print {
