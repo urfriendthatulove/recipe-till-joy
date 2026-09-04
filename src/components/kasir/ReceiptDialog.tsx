@@ -17,6 +17,14 @@ import { PAYMENT_LABEL } from "@/lib/sales";
 const IMIN_PAGE_WIDTH_DOTS = 384; // usable dot width on iMin's 58mm printer
 const IMIN_DIVIDER_CHARS = 32;
 const IMIN_BITMAP_PADDING = 12;
+const IMIN_BITMAP_THRESHOLD = 190;
+
+type ReceiptLine = {
+  text: string;
+  align: "left" | "center";
+  size: number;
+  weight: "400" | "500" | "600" | "700";
+};
 
 function toAsciiThermal(value: string) {
   return value
@@ -38,7 +46,7 @@ function buildThermalRow(label: string, value: string) {
 }
 
 function buildReceiptLines(sale: Sale) {
-  const lines = [
+  const lines: ReceiptLine[] = [
     { text: "RAKYAT COFFEE'S", align: "center" as const, size: 30, weight: "700" as const },
     { text: "POS", align: "center" as const, size: 23, weight: "700" as const },
     { text: "", align: "left" as const, size: 12, weight: "400" as const },
@@ -126,6 +134,29 @@ function buildReceiptLines(sale: Sale) {
   return lines;
 }
 
+function thresholdReceiptBitmap(
+  context: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+) {
+  const imageData = context.getImageData(0, 0, canvasWidth, canvasHeight);
+
+  for (let index = 0; index < imageData.data.length; index += 4) {
+    const red = imageData.data[index] ?? 255;
+    const green = imageData.data[index + 1] ?? 255;
+    const blue = imageData.data[index + 2] ?? 255;
+    const luminance = red * 0.299 + green * 0.587 + blue * 0.114;
+    const value = luminance >= IMIN_BITMAP_THRESHOLD ? 255 : 0;
+
+    imageData.data[index] = value;
+    imageData.data[index + 1] = value;
+    imageData.data[index + 2] = value;
+    imageData.data[index + 3] = 255;
+  }
+
+  context.putImageData(imageData, 0, 0);
+}
+
 function printReceiptAsBitmap(printer: IminPrinterInstance, sale: Sale) {
   if (typeof document === "undefined") {
     throw new Error("Bitmap receipt membutuhkan DOM.");
@@ -153,9 +184,8 @@ function printReceiptAsBitmap(printer: IminPrinterInstance, sale: Sale) {
   context.imageSmoothingEnabled = false;
 
   let y = IMIN_BITMAP_PADDING;
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    const lineHeight = lineHeights[index];
+  for (const [index, line] of lines.entries()) {
+    const lineHeight = lineHeights[index] ?? Math.ceil(line.size * 1.45);
     context.font = `${line.weight} ${line.size}px Arial`;
 
     const textWidth = context.measureText(line.text).width;
@@ -167,6 +197,8 @@ function printReceiptAsBitmap(printer: IminPrinterInstance, sale: Sale) {
     context.fillText(line.text, x, y);
     y += lineHeight;
   }
+
+  thresholdReceiptBitmap(context, canvasWidth, canvasHeight);
 
   printer.initPrinter(printer.PrintConnectType.SPI);
   printer.setPageFormat(1);
