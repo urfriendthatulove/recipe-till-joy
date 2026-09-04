@@ -17,56 +17,78 @@ import { PAYMENT_LABEL } from "@/lib/sales";
 const IMIN_PAGE_WIDTH_DOTS = 384; // usable dot width on iMin's 58mm printer
 const IMIN_DIVIDER_CHARS = 32;
 
+function toAsciiThermal(value: string) {
+  return value
+    .replace(/×/g, "x")
+    .replace(/•/g, "-")
+    .replace(/−/g, "-")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[^\x20-\x7E\n]/g, "");
+}
+
+function buildThermalRow(label: string, value: string) {
+  const left = toAsciiThermal(label).trim();
+  const right = toAsciiThermal(value).trim();
+  const maxLeft = Math.max(1, IMIN_DIVIDER_CHARS - right.length - 1);
+  const clippedLeft = left.length > maxLeft ? `${left.slice(0, Math.max(0, maxLeft - 1))}.` : left;
+  const spaces = " ".repeat(Math.max(1, IMIN_DIVIDER_CHARS - clippedLeft.length - right.length));
+  return `${clippedLeft}${spaces}${right}`;
+}
+
 function printReceiptViaIminSdk(printer: IminPrinterInstance, sale: Sale) {
-  printer.initPrinter(printer.PrintConnectType.Bluetooth);
-  printer.setPageFormat(1);
+  printer.initPrinter(printer.PrintConnectType.SPI);
+  printer.setPageFormat(0);
   printer.setTextWidth(IMIN_PAGE_WIDTH_DOTS);
   printer.setLeftMargin(0);
 
   const divider = "-".repeat(IMIN_DIVIDER_CHARS);
-  const row = (label: string, value: string, size = 24) =>
-    printer.printColumnsText([label, value], [20, 12], [0, 2], [size, size], IMIN_PAGE_WIDTH_DOTS);
+  const printLine = (text: string) => printer.printText(`${toAsciiThermal(text)}\n`, 0);
 
   printer.setAlignment(1);
   printer.setTextStyle(1);
-  printer.setTextSize(34);
-  printer.printText("RAKYAT COFFEE'S\n", 0);
+  printer.setTextSize(28);
+  printLine("RAKYAT COFFEE'S");
 
-  printer.setTextSize(26);
-  printer.printText("POS\n", 0);
+  printer.setTextSize(24);
+  printLine("POS");
 
   printer.setTextStyle(0);
-  printer.setTextSize(24);
-  printer.printText(`${sale.saleNumber}\n`, 0);
-  printer.printText(`${formatTanggalJam(sale.createdAt)}\n`, 0);
+  printer.setTextSize(22);
+  printLine(sale.saleNumber);
+  printLine(formatTanggalJam(sale.createdAt));
 
   printer.setAlignment(0);
-  printer.printText(`${divider}\n`, 0);
+  printLine(divider);
 
   for (const item of sale.items) {
-    row(`${item.qty}x ${item.nameSnapshot}`, formatRp(item.lineNet));
+    const itemLabel = `${item.qty}x ${item.nameSnapshot}`;
+    printLine(buildThermalRow(itemLabel, formatRp(item.lineNet)));
   }
 
-  printer.printText(`${divider}\n`, 0);
+  printLine(divider);
 
-  row("Subtotal", formatRp(sale.subtotal));
+  printLine(buildThermalRow("Subtotal", formatRp(sale.subtotal)));
   if (sale.discount > 0) {
-    row("Diskon", `- ${formatRp(sale.discount)}`);
+    printLine(buildThermalRow("Diskon", `- ${formatRp(sale.discount)}`));
   }
   printer.setTextStyle(1);
-  row("TOTAL", formatRp(sale.netSales), 28);
+  printer.setTextSize(24);
+  printLine(buildThermalRow("TOTAL", formatRp(sale.netSales)));
   printer.setTextStyle(0);
-  row("Pemb", PAYMENT_LABEL[sale.paymentMethod]);
+  printer.setTextSize(22);
+  printLine(buildThermalRow("Pemb", PAYMENT_LABEL[sale.paymentMethod]));
 
-  printer.printText(`${divider}\n`, 0);
+  printLine(divider);
 
   printer.setAlignment(1);
   const note = sale.note?.trim();
   if (note) {
-    printer.printText(`Catatan: ${note}\n`, 0);
+    printLine(`Catatan: ${note}`);
   }
   printer.setTextStyle(1);
-  printer.printText("TERIMA KASIH\n", 0);
+  printer.setTextSize(22);
+  printLine("TERIMA KASIH");
 
   printer.printAndFeedPaper(80);
   printer.partialCut();
@@ -295,7 +317,10 @@ function printReceipt(sale: Sale) {
       printReceiptViaIminSdk(iminPrinter, sale);
       return;
     } catch (error) {
-      console.warn("Gagal cetak lewat SDK printer iMin, pakai print browser sebagai fallback.", error);
+      console.warn(
+        "Gagal cetak lewat SDK printer iMin, pakai print browser sebagai fallback.",
+        error,
+      );
     }
   }
 
