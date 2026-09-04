@@ -18,13 +18,45 @@ const IMIN_PAGE_WIDTH_DOTS = 384; // usable dot width on iMin's 58mm printer
 const IMIN_DIVIDER_CHARS = 32;
 const IMIN_BITMAP_PADDING = 12;
 const IMIN_BITMAP_THRESHOLD = 190;
+const IMIN_BITMAP_COLUMN_GAP = 12;
+const IMIN_BITMAP_VALUE_WIDTH = 128;
 
-type ReceiptLine = {
+type ReceiptTextLine = {
+  kind: "text";
   text: string;
   align: "left" | "center";
   size: number;
   weight: "400" | "500" | "600" | "700";
 };
+
+type ReceiptPairLine = {
+  kind: "pair";
+  label: string;
+  value: string;
+  size: number;
+  weight: "400" | "500" | "600" | "700";
+};
+
+type ReceiptLine = ReceiptTextLine | ReceiptPairLine;
+
+type BitmapLayoutLine =
+  | {
+      kind: "text";
+      text: string;
+      align: "left" | "center";
+      size: number;
+      weight: "400" | "500" | "600" | "700";
+      height: number;
+    }
+  | {
+      kind: "pair";
+      labelLines: string[];
+      value: string;
+      size: number;
+      weight: "400" | "500" | "600" | "700";
+      lineHeight: number;
+      height: number;
+    };
 
 function toAsciiThermal(value: string) {
   return value
@@ -47,22 +79,31 @@ function buildThermalRow(label: string, value: string) {
 
 function buildReceiptLines(sale: Sale) {
   const lines: ReceiptLine[] = [
-    { text: "RAKYAT COFFEE'S", align: "center" as const, size: 30, weight: "700" as const },
-    { text: "POS", align: "center" as const, size: 23, weight: "700" as const },
-    { text: "", align: "left" as const, size: 12, weight: "400" as const },
     {
+      kind: "text",
+      text: "RAKYAT COFFEE'S",
+      align: "center" as const,
+      size: 30,
+      weight: "700" as const,
+    },
+    { kind: "text", text: "POS", align: "center" as const, size: 23, weight: "700" as const },
+    { kind: "text", text: "", align: "left" as const, size: 12, weight: "400" as const },
+    {
+      kind: "text",
       text: toAsciiThermal(sale.saleNumber),
       align: "center" as const,
       size: 20,
       weight: "600" as const,
     },
     {
+      kind: "text",
       text: toAsciiThermal(formatTanggalJam(sale.createdAt)),
       align: "center" as const,
       size: 18,
       weight: "400" as const,
     },
     {
+      kind: "text",
       text: "-".repeat(IMIN_DIVIDER_CHARS),
       align: "left" as const,
       size: 18,
@@ -72,48 +113,55 @@ function buildReceiptLines(sale: Sale) {
 
   for (const item of sale.items) {
     lines.push({
-      text: buildThermalRow(`${item.qty}x ${item.nameSnapshot}`, formatRp(item.lineNet)),
-      align: "left" as const,
+      kind: "pair",
+      label: toAsciiThermal(`${item.qty}x ${item.nameSnapshot}`),
+      value: toAsciiThermal(formatRp(item.lineNet)),
       size: 20,
       weight: "600" as const,
     });
   }
 
   lines.push({
+    kind: "text",
     text: "-".repeat(IMIN_DIVIDER_CHARS),
     align: "left" as const,
     size: 18,
     weight: "400" as const,
   });
   lines.push({
-    text: buildThermalRow("Subtotal", formatRp(sale.subtotal)),
-    align: "left" as const,
+    kind: "pair",
+    label: "Subtotal",
+    value: toAsciiThermal(formatRp(sale.subtotal)),
     size: 20,
     weight: "500" as const,
   });
 
   if (sale.discount > 0) {
     lines.push({
-      text: buildThermalRow("Diskon", `- ${formatRp(sale.discount)}`),
-      align: "left" as const,
+      kind: "pair",
+      label: "Diskon",
+      value: toAsciiThermal(`- ${formatRp(sale.discount)}`),
       size: 20,
       weight: "500" as const,
     });
   }
 
   lines.push({
-    text: buildThermalRow("TOTAL", formatRp(sale.netSales)),
-    align: "left" as const,
+    kind: "pair",
+    label: "TOTAL",
+    value: toAsciiThermal(formatRp(sale.netSales)),
     size: 22,
     weight: "700" as const,
   });
   lines.push({
-    text: buildThermalRow("Pemb", PAYMENT_LABEL[sale.paymentMethod]),
-    align: "left" as const,
+    kind: "pair",
+    label: "Pemb",
+    value: toAsciiThermal(PAYMENT_LABEL[sale.paymentMethod]),
     size: 20,
     weight: "500" as const,
   });
   lines.push({
+    kind: "text",
     text: "-".repeat(IMIN_DIVIDER_CHARS),
     align: "left" as const,
     size: 18,
@@ -123,6 +171,7 @@ function buildReceiptLines(sale: Sale) {
   const note = sale.note?.trim();
   if (note) {
     lines.push({
+      kind: "text",
       text: toAsciiThermal(`Catatan: ${note}`),
       align: "center" as const,
       size: 18,
@@ -130,8 +179,88 @@ function buildReceiptLines(sale: Sale) {
     });
   }
 
-  lines.push({ text: "TERIMA KASIH", align: "center" as const, size: 20, weight: "700" as const });
+  lines.push({
+    kind: "text",
+    text: "TERIMA KASIH",
+    align: "center" as const,
+    size: 20,
+    weight: "700" as const,
+  });
   return lines;
+}
+
+function wrapBitmapText(context: CanvasRenderingContext2D, text: string, maxWidth: number) {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return [""];
+  }
+
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+    if (context.measureText(nextLine).width <= maxWidth) {
+      currentLine = nextLine;
+      continue;
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+
+    if (context.measureText(word).width <= maxWidth) {
+      currentLine = word;
+      continue;
+    }
+
+    let chunk = "";
+    for (const char of word) {
+      const nextChunk = `${chunk}${char}`;
+      if (context.measureText(nextChunk).width <= maxWidth) {
+        chunk = nextChunk;
+        continue;
+      }
+
+      if (chunk) {
+        lines.push(chunk);
+      }
+      chunk = char;
+    }
+    currentLine = chunk;
+  }
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+}
+
+function buildBitmapLayoutLines(lines: ReceiptLine[], context: CanvasRenderingContext2D) {
+  const contentWidth = IMIN_PAGE_WIDTH_DOTS - IMIN_BITMAP_PADDING * 2;
+  const labelWidth = contentWidth - IMIN_BITMAP_VALUE_WIDTH - IMIN_BITMAP_COLUMN_GAP;
+
+  return lines.map<BitmapLayoutLine>((line) => {
+    const lineHeight = Math.ceil(line.size * 1.45);
+
+    if (line.kind === "text") {
+      return { ...line, height: lineHeight };
+    }
+
+    context.font = `${line.weight} ${line.size}px Arial`;
+    const labelLines = wrapBitmapText(context, line.label, labelWidth);
+
+    return {
+      kind: "pair",
+      labelLines,
+      value: line.value,
+      size: line.size,
+      weight: line.weight,
+      lineHeight,
+      height: lineHeight * labelLines.length,
+    };
+  });
 }
 
 function thresholdReceiptBitmap(
@@ -163,9 +292,15 @@ function printReceiptAsBitmap(printer: IminPrinterInstance, sale: Sale) {
   }
 
   const lines = buildReceiptLines(sale);
+  const measureCanvas = document.createElement("canvas");
+  const measureContext = measureCanvas.getContext("2d");
+  if (!measureContext) {
+    throw new Error("Canvas context tidak tersedia untuk layout bon.");
+  }
+
+  const layoutLines = buildBitmapLayoutLines(lines, measureContext);
   const canvas = document.createElement("canvas");
-  const lineHeights = lines.map((line) => Math.ceil(line.size * 1.45));
-  const contentHeight = lineHeights.reduce((sum, height) => sum + height, 0);
+  const contentHeight = layoutLines.reduce((sum, line) => sum + line.height, 0);
   const canvasWidth = IMIN_PAGE_WIDTH_DOTS;
   const canvasHeight = contentHeight + IMIN_BITMAP_PADDING * 2;
 
@@ -184,18 +319,34 @@ function printReceiptAsBitmap(printer: IminPrinterInstance, sale: Sale) {
   context.imageSmoothingEnabled = false;
 
   let y = IMIN_BITMAP_PADDING;
-  for (const [index, line] of lines.entries()) {
-    const lineHeight = lineHeights[index] ?? Math.ceil(line.size * 1.45);
+  for (const line of layoutLines) {
     context.font = `${line.weight} ${line.size}px Arial`;
 
-    const textWidth = context.measureText(line.text).width;
-    let x = IMIN_BITMAP_PADDING;
-    if (line.align === "center") {
-      x = Math.max(IMIN_BITMAP_PADDING, (canvasWidth - textWidth) / 2);
+    if (line.kind === "text") {
+      const textWidth = context.measureText(line.text).width;
+      let x = IMIN_BITMAP_PADDING;
+      if (line.align === "center") {
+        x = Math.max(IMIN_BITMAP_PADDING, (canvasWidth - textWidth) / 2);
+      }
+
+      context.fillText(line.text, x, y);
+      y += line.height;
+      continue;
     }
 
-    context.fillText(line.text, x, y);
-    y += lineHeight;
+    const valueWidth = context.measureText(line.value).width;
+    const valueX = canvasWidth - IMIN_BITMAP_PADDING - valueWidth;
+
+    for (const [labelIndex, labelLine] of line.labelLines.entries()) {
+      const lineY = y + labelIndex * line.lineHeight;
+      context.fillText(labelLine, IMIN_BITMAP_PADDING, lineY);
+
+      if (labelIndex === 0) {
+        context.fillText(line.value, valueX, lineY);
+      }
+    }
+
+    y += line.height;
   }
 
   thresholdReceiptBitmap(context, canvasWidth, canvasHeight);
