@@ -60,6 +60,27 @@ type BitmapLayoutLine =
       height: number;
     };
 
+type BluetoothNavigator = Navigator & {
+  bluetooth?: {
+    requestDevice(options: {
+      filters?: Array<{ name?: string; namePrefix?: string; services?: string[] }>;
+      optionalServices?: string[];
+      acceptAllDevices?: boolean;
+    }): Promise<{
+      gatt?: {
+        connect(): Promise<{
+          getPrimaryService(service: string): Promise<{
+            getCharacteristic(characteristic: string): Promise<{
+              writeValue(data: BufferSource): Promise<void>;
+            }>;
+          }>;
+          disconnect(): void;
+        }>;
+      };
+    }>;
+  };
+};
+
 function toAsciiThermal(value: string) {
   return value
     .replace(/×/g, "x")
@@ -455,11 +476,12 @@ function buildBluetoothReceiptText(sale: Sale) {
 }
 
 async function printReceiptViaBluetooth(sale: Sale) {
-  if (!("bluetooth" in navigator)) {
+  const bluetoothNavigator = navigator as BluetoothNavigator;
+  if (!bluetoothNavigator.bluetooth) {
     throw new Error("Browser ini tidak mendukung Web Bluetooth.");
   }
 
-  const device = await navigator.bluetooth.requestDevice({
+  const device = await bluetoothNavigator.bluetooth.requestDevice({
     filters: [{ name: "BluetoothPrinter" }],
     optionalServices: [BLUETOOTH_PRINTER_SERVICE_UUID],
   });
