@@ -482,7 +482,7 @@ async function printReceiptViaBluetooth(sale: Sale) {
   }
 
   const device = await bluetoothNavigator.bluetooth.requestDevice({
-    filters: [{ name: "BluetoothPrinter" }],
+    acceptAllDevices: true,
     optionalServices: [BLUETOOTH_PRINTER_SERVICE_UUID],
   });
 
@@ -723,16 +723,6 @@ function buildReceiptHtml(sale: Sale) {
 }
 
 async function printReceipt(sale: Sale) {
-  try {
-    await printReceiptViaBluetooth(sale);
-    return;
-  } catch (error) {
-    console.warn(
-      "Gagal cetak lewat Bluetooth printer, lanjut ke jalur printer iMin/browser.",
-      error,
-    );
-  }
-
   const iminPrinter = getIminPrinter();
   if (iminPrinter) {
     try {
@@ -740,10 +730,17 @@ async function printReceipt(sale: Sale) {
       return;
     } catch (error) {
       console.warn(
-        "Gagal cetak lewat SDK printer iMin, pakai print browser sebagai fallback.",
+        "Gagal cetak lewat SDK printer iMin, coba Bluetooth lalu browser sebagai fallback.",
         error,
       );
     }
+  }
+
+  try {
+    await printReceiptViaBluetooth(sale);
+    return;
+  } catch (error) {
+    console.warn("Gagal cetak lewat Bluetooth printer, lanjut ke print browser.", error);
   }
 
   const html = buildReceiptHtml(sale);
