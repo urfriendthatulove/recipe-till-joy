@@ -58,10 +58,11 @@ function buildReceiptHtml(sale: Sale) {
             padding: 0;
             background: #fff;
             color: #000;
-            font-family: "Tahoma", "Arial", "Helvetica", sans-serif;
-            font-size: 12px;
-            line-height: 1.35;
-            text-rendering: geometricPrecision;
+            font-family: "Arial", "Helvetica", sans-serif;
+            font-size: 11px;
+            line-height: 1.3;
+            font-weight: 400;
+            text-rendering: optimizeLegibility;
           }
 
           body {
@@ -87,7 +88,7 @@ function buildReceiptHtml(sale: Sale) {
             background: #fff;
             color: #111;
             font: inherit;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
             padding: 6px;
             width: 100%;
@@ -103,14 +104,14 @@ function buildReceiptHtml(sale: Sale) {
           }
 
           .brand {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 700;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.01em;
             margin: 2px 0 6px;
           }
 
           .title {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 700;
             margin-bottom: 4px;
           }
@@ -135,7 +136,7 @@ function buildReceiptHtml(sale: Sale) {
 
           td {
             vertical-align: top;
-            padding: 2px 0;
+            padding: 1px 0;
           }
 
           .item-name {
@@ -147,7 +148,7 @@ function buildReceiptHtml(sale: Sale) {
           .amount {
             text-align: right;
             white-space: nowrap;
-            font-weight: 700;
+            font-weight: 600;
           }
 
           .row {
@@ -158,19 +159,23 @@ function buildReceiptHtml(sale: Sale) {
           }
 
           .row.total {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
             padding-top: 2px;
           }
 
           .footer {
             text-align: center;
-            font-size: 11px;
+            font-size: 10px;
           }
 
           @media print {
             .actions {
               display: none;
+            }
+
+            * {
+              text-shadow: none !important;
             }
 
             html, body {
@@ -180,6 +185,7 @@ function buildReceiptHtml(sale: Sale) {
               max-width: ${receiptWidth};
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
+              image-rendering: crisp-edges;
             }
           }
         </style>
