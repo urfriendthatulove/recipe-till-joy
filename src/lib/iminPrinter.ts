@@ -14,7 +14,9 @@ export interface IminPrinterInstance {
   setLeftMargin: (marginValue: number) => void;
   setAlignment: (alignment: 0 | 1 | 2) => void;
   setTextSize: (size: number) => void;
+  setTextTypeface?: (typeface: 0 | 1 | 2 | 3 | 4) => void;
   setTextStyle: (style: 0 | 1 | 2 | 3) => void;
+  setTextLineSpacing?: (space: number) => void;
   printText: (text: string, type?: 0 | 1) => void;
   printColumnsText: (
     colTextArr: string[],

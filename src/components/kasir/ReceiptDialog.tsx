@@ -41,20 +41,22 @@ function printReceiptViaIminSdk(printer: IminPrinterInstance, sale: Sale) {
   printer.setPageFormat(1);
   printer.setTextWidth(IMIN_PAGE_WIDTH_DOTS);
   printer.setLeftMargin(0);
+  printer.setTextTypeface?.(1);
+  printer.setTextLineSpacing?.(1);
 
   const divider = "-".repeat(IMIN_DIVIDER_CHARS);
   const printLine = (text: string) => printer.printText(`${toAsciiThermal(text)}\n`, 0);
 
   printer.setAlignment(1);
   printer.setTextStyle(1);
-  printer.setTextSize(28);
+  printer.setTextSize(24);
   printLine("RAKYAT COFFEE'S");
 
-  printer.setTextSize(24);
+  printer.setTextSize(22);
   printLine("POS");
 
   printer.setTextStyle(0);
-  printer.setTextSize(22);
+  printer.setTextSize(20);
   printLine(sale.saleNumber);
   printLine(formatTanggalJam(sale.createdAt));
 
@@ -73,10 +75,10 @@ function printReceiptViaIminSdk(printer: IminPrinterInstance, sale: Sale) {
     printLine(buildThermalRow("Diskon", `- ${formatRp(sale.discount)}`));
   }
   printer.setTextStyle(1);
-  printer.setTextSize(24);
+  printer.setTextSize(22);
   printLine(buildThermalRow("TOTAL", formatRp(sale.netSales)));
   printer.setTextStyle(0);
-  printer.setTextSize(22);
+  printer.setTextSize(20);
   printLine(buildThermalRow("Pemb", PAYMENT_LABEL[sale.paymentMethod]));
 
   printLine(divider);
@@ -87,7 +89,7 @@ function printReceiptViaIminSdk(printer: IminPrinterInstance, sale: Sale) {
     printLine(`Catatan: ${note}`);
   }
   printer.setTextStyle(1);
-  printer.setTextSize(22);
+  printer.setTextSize(20);
   printLine("TERIMA KASIH");
 
   printer.printAndFeedPaper(80);
