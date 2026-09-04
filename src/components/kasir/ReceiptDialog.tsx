@@ -11,7 +11,66 @@ import {
 } from "@/components/ui/dialog";
 import type { Sale } from "@/lib/db";
 import { formatRp, formatTanggalJam } from "@/lib/format";
+import { getIminPrinter, type IminPrinterInstance } from "@/lib/iminPrinter";
 import { PAYMENT_LABEL } from "@/lib/sales";
+
+const IMIN_PAGE_WIDTH_DOTS = 384; // usable dot width on iMin's 58mm printer
+const IMIN_DIVIDER_CHARS = 32;
+
+function printReceiptViaIminSdk(printer: IminPrinterInstance, sale: Sale) {
+  printer.initPrinter(printer.PrintConnectType.Bluetooth);
+  printer.setPageFormat(1);
+  printer.setTextWidth(IMIN_PAGE_WIDTH_DOTS);
+  printer.setLeftMargin(0);
+
+  const divider = "-".repeat(IMIN_DIVIDER_CHARS);
+  const row = (label: string, value: string, size = 24) =>
+    printer.printColumnsText([label, value], [20, 12], [0, 2], [size, size], IMIN_PAGE_WIDTH_DOTS);
+
+  printer.setAlignment(1);
+  printer.setTextStyle(1);
+  printer.setTextSize(34);
+  printer.printText("RAKYAT COFFEE'S\n", 0);
+
+  printer.setTextSize(26);
+  printer.printText("POS\n", 0);
+
+  printer.setTextStyle(0);
+  printer.setTextSize(24);
+  printer.printText(`${sale.saleNumber}\n`, 0);
+  printer.printText(`${formatTanggalJam(sale.createdAt)}\n`, 0);
+
+  printer.setAlignment(0);
+  printer.printText(`${divider}\n`, 0);
+
+  for (const item of sale.items) {
+    row(`${item.qty}x ${item.nameSnapshot}`, formatRp(item.lineNet));
+  }
+
+  printer.printText(`${divider}\n`, 0);
+
+  row("Subtotal", formatRp(sale.subtotal));
+  if (sale.discount > 0) {
+    row("Diskon", `- ${formatRp(sale.discount)}`);
+  }
+  printer.setTextStyle(1);
+  row("TOTAL", formatRp(sale.netSales), 28);
+  printer.setTextStyle(0);
+  row("Pemb", PAYMENT_LABEL[sale.paymentMethod]);
+
+  printer.printText(`${divider}\n`, 0);
+
+  printer.setAlignment(1);
+  const note = sale.note?.trim();
+  if (note) {
+    printer.printText(`Catatan: ${note}\n`, 0);
+  }
+  printer.setTextStyle(1);
+  printer.printText("TERIMA KASIH\n", 0);
+
+  printer.printAndFeedPaper(80);
+  printer.partialCut();
+}
 
 function escapeHtml(value: string) {
   return value
@@ -230,6 +289,16 @@ function buildReceiptHtml(sale: Sale) {
 }
 
 function printReceipt(sale: Sale) {
+  const iminPrinter = getIminPrinter();
+  if (iminPrinter) {
+    try {
+      printReceiptViaIminSdk(iminPrinter, sale);
+      return;
+    } catch (error) {
+      console.warn("Gagal cetak lewat SDK printer iMin, pakai print browser sebagai fallback.", error);
+    }
+  }
+
   const html = buildReceiptHtml(sale);
   const printWindow = window.open("", "_blank", "width=420,height=780");
   if (!printWindow) {
