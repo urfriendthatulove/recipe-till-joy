@@ -59,8 +59,8 @@ function buildReceiptHtml(sale: Sale) {
             background: #fff;
             color: #111;
             font-family: "Courier New", monospace;
-            font-size: 13px;
-            line-height: 1.35;
+            font-size: 15px;
+            line-height: 1.45;
           }
 
           body {
@@ -68,8 +68,29 @@ function buildReceiptHtml(sale: Sale) {
             min-width: ${receiptWidth};
             max-width: ${receiptWidth};
             box-sizing: border-box;
-            padding: 8px 7px 10px;
+            padding: 7px 6px 10px;
             overflow: hidden;
+          }
+
+          .actions {
+            width: ${receiptWidth};
+            box-sizing: border-box;
+            padding: 8px 6px;
+            display: flex;
+            justify-content: space-between;
+            gap: 6px;
+          }
+
+          .actions button {
+            border: 1px solid #111;
+            background: #fff;
+            color: #111;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 6px;
+            width: 100%;
+            cursor: pointer;
           }
 
           .receipt {
@@ -81,14 +102,14 @@ function buildReceiptHtml(sale: Sale) {
           }
 
           .brand {
-            font-size: 18px;
+            font-size: 21px;
             font-weight: 700;
             letter-spacing: 0.08em;
             margin: 2px 0 6px;
           }
 
           .title {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 700;
             margin-bottom: 4px;
           }
@@ -136,17 +157,21 @@ function buildReceiptHtml(sale: Sale) {
           }
 
           .row.total {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 700;
             padding-top: 2px;
           }
 
           .footer {
             text-align: center;
-            font-size: 11px;
+            font-size: 13px;
           }
 
           @media print {
+            .actions {
+              display: none;
+            }
+
             html, body {
               margin: 0;
               width: ${receiptWidth};
@@ -159,6 +184,11 @@ function buildReceiptHtml(sale: Sale) {
         </style>
       </head>
       <body>
+        <div class="actions">
+          <button type="button" onclick="window.print()">Cetak bon</button>
+          <button type="button" onclick="window.close()">Tutup</button>
+        </div>
+
         <div class="receipt">
           <div class="center brand">RAKYAT COFFEE'S</div>
           <div class="center title">POS</div>
@@ -188,60 +218,16 @@ function buildReceiptHtml(sale: Sale) {
 
 function printReceipt(sale: Sale) {
   const html = buildReceiptHtml(sale);
-
-  const fallbackPopup = () => {
-    const printWindow = window.open("", "_blank", "width=420,height=700");
-    if (!printWindow) {
-      console.warn(
-        "Browser memblokir popup cetak bon dan iframe cetak. Izinkan popup atau aktifkan printer default.",
-      );
-      return;
-    }
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
-    setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-      setTimeout(() => printWindow.close(), 900);
-    }, 250);
-  };
-
-  try {
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    iframe.style.opacity = "0";
-    iframe.setAttribute("aria-hidden", "true");
-    document.body.appendChild(iframe);
-
-    const iframeWindow = iframe.contentWindow;
-    if (!iframeWindow) {
-      fallbackPopup();
-      return;
-    }
-
-    iframeWindow.document.open();
-    iframeWindow.document.write(html);
-    iframeWindow.document.close();
-
-    setTimeout(() => {
-      try {
-        iframeWindow.focus();
-        iframeWindow.print();
-      } catch {
-        fallbackPopup();
-      } finally {
-        setTimeout(() => iframe.remove(), 1200);
-      }
-    }, 300);
-  } catch {
-    fallbackPopup();
+  const printWindow = window.open("", "_blank", "width=420,height=780");
+  if (!printWindow) {
+    console.warn("Browser memblokir popup bon. Izinkan popup agar halaman bon bisa dibuka.");
+    return;
   }
+
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
 }
 
 export function ReceiptDialog({
