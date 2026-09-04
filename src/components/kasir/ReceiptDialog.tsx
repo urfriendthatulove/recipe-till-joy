@@ -455,7 +455,7 @@ function buildReceiptHtml(sale: Sale) {
         <title>Bon ${escapeHtml(sale.saleNumber)}</title>
         <style>
           @page {
-            size: ${receiptWidth} auto;
+            size: 58mm 297mm;
             margin: 0;
           }
 
@@ -598,6 +598,7 @@ function buildReceiptHtml(sale: Sale) {
               width: ${receiptWidth};
               min-width: ${receiptWidth};
               max-width: ${receiptWidth};
+              height: auto;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
               image-rendering: crisp-edges;
