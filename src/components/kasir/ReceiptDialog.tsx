@@ -20,6 +20,8 @@ const IMIN_BITMAP_PADDING = 12;
 const IMIN_BITMAP_THRESHOLD = 190;
 const IMIN_BITMAP_COLUMN_GAP = 12;
 const IMIN_BITMAP_VALUE_WIDTH = 128;
+const BLUETOOTH_PRINTER_SERVICE_UUID = "000018f0-0000-1000-8000-00805f9b34fb";
+const BLUETOOTH_PRINTER_WRITE_UUID = "00002af1-0000-1000-8000-00805f9b34fb";
 
 type ReceiptTextLine = {
   kind: "text";
@@ -425,6 +427,63 @@ function printReceiptViaIminSdk(printer: IminPrinterInstance, sale: Sale) {
   printer.partialCut();
 }
 
+function buildBluetoothReceiptText(sale: Sale) {
+  const lines = ["RAKYAT COFFEE'S", "POS", "", sale.saleNumber, formatTanggalJam(sale.createdAt)];
+  const divider = "-".repeat(IMIN_DIVIDER_CHARS);
+  lines.push(divider);
+
+  for (const item of sale.items) {
+    lines.push(buildThermalRow(`${item.qty}x ${item.nameSnapshot}`, formatRp(item.lineNet)));
+  }
+
+  lines.push(divider);
+  lines.push(buildThermalRow("Subtotal", formatRp(sale.subtotal)));
+  if (sale.discount > 0) {
+    lines.push(buildThermalRow("Diskon", `- ${formatRp(sale.discount)}`));
+  }
+  lines.push(buildThermalRow("TOTAL", formatRp(sale.netSales)));
+  lines.push(buildThermalRow("Pemb", PAYMENT_LABEL[sale.paymentMethod]));
+  lines.push(divider);
+
+  const note = sale.note?.trim();
+  if (note) {
+    lines.push(toAsciiThermal(`Catatan: ${note}`));
+  }
+
+  lines.push("TERIMA KASIH", "", "", "");
+  return `${lines.map(toAsciiThermal).join("\n")}\n`;
+}
+
+async function printReceiptViaBluetooth(sale: Sale) {
+  if (!("bluetooth" in navigator)) {
+    throw new Error("Browser ini tidak mendukung Web Bluetooth.");
+  }
+
+  const device = await navigator.bluetooth.requestDevice({
+    filters: [{ name: "BluetoothPrinter" }],
+    optionalServices: [BLUETOOTH_PRINTER_SERVICE_UUID],
+  });
+
+  const server = await device.gatt?.connect();
+  if (!server) {
+    throw new Error("GATT server printer tidak tersedia.");
+  }
+
+  const service = await server.getPrimaryService(BLUETOOTH_PRINTER_SERVICE_UUID);
+  const characteristic = await service.getCharacteristic(BLUETOOTH_PRINTER_WRITE_UUID);
+  const encoder = new TextEncoder();
+  const receiptText = buildBluetoothReceiptText(sale);
+  const escPosPrefix = new Uint8Array([0x1b, 0x40]);
+  const payload = encoder.encode(receiptText);
+  const data = new Uint8Array(escPosPrefix.length + payload.length);
+
+  data.set(escPosPrefix, 0);
+  data.set(payload, escPosPrefix.length);
+
+  await characteristic.writeValue(data);
+  server.disconnect();
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -641,7 +700,17 @@ function buildReceiptHtml(sale: Sale) {
     </html>`;
 }
 
-function printReceipt(sale: Sale) {
+async function printReceipt(sale: Sale) {
+  try {
+    await printReceiptViaBluetooth(sale);
+    return;
+  } catch (error) {
+    console.warn(
+      "Gagal cetak lewat Bluetooth printer, lanjut ke jalur printer iMin/browser.",
+      error,
+    );
+  }
+
   const iminPrinter = getIminPrinter();
   if (iminPrinter) {
     try {
@@ -677,7 +746,7 @@ export function ReceiptDialog({
 }) {
   const handleNewTransaction = () => {
     if (sale) {
-      printReceipt(sale);
+      void printReceipt(sale);
     }
     onOpenChange(false);
   };
