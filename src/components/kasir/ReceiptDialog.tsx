@@ -435,7 +435,8 @@ function escapeHtml(value: string) {
 }
 
 function buildReceiptHtml(sale: Sale) {
-  const receiptWidth = "58mm";
+  const receiptWidth = "57mm";
+  const receiptHeight = "81mm";
   const footerNote = sale.note?.trim() ? `Catatan: ${escapeHtml(sale.note.trim())}` : "";
   const itemsHtml = sale.items
     .map(
@@ -455,12 +456,13 @@ function buildReceiptHtml(sale: Sale) {
         <title>Bon ${escapeHtml(sale.saleNumber)}</title>
         <style>
           @page {
-            size: 58mm 297mm;
+            size: ${receiptWidth} ${receiptHeight};
             margin: 0;
           }
 
           html {
             width: ${receiptWidth};
+            height: ${receiptHeight};
             min-width: ${receiptWidth};
             max-width: ${receiptWidth};
           }
@@ -481,6 +483,7 @@ function buildReceiptHtml(sale: Sale) {
 
           body {
             width: ${receiptWidth};
+            min-height: ${receiptHeight};
             min-width: ${receiptWidth};
             max-width: ${receiptWidth};
             box-sizing: border-box;
@@ -596,6 +599,7 @@ function buildReceiptHtml(sale: Sale) {
             html, body {
               margin: 0;
               width: ${receiptWidth};
+              min-height: ${receiptHeight};
               min-width: ${receiptWidth};
               max-width: ${receiptWidth};
               height: auto;
