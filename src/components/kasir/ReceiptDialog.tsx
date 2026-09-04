@@ -57,10 +57,11 @@ function buildReceiptHtml(sale: Sale) {
             margin: 0;
             padding: 0;
             background: #fff;
-            color: #111;
-            font-family: "Courier New", monospace;
-            font-size: 15px;
-            line-height: 1.45;
+            color: #000;
+            font-family: "Tahoma", "Arial", "Helvetica", sans-serif;
+            font-size: 12px;
+            line-height: 1.35;
+            text-rendering: geometricPrecision;
           }
 
           body {
@@ -86,7 +87,7 @@ function buildReceiptHtml(sale: Sale) {
             background: #fff;
             color: #111;
             font: inherit;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
             padding: 6px;
             width: 100%;
@@ -102,14 +103,14 @@ function buildReceiptHtml(sale: Sale) {
           }
 
           .brand {
-            font-size: 21px;
+            font-size: 16px;
             font-weight: 700;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.03em;
             margin: 2px 0 6px;
           }
 
           .title {
-            font-size: 16px;
+            font-size: 13px;
             font-weight: 700;
             margin-bottom: 4px;
           }
@@ -157,14 +158,14 @@ function buildReceiptHtml(sale: Sale) {
           }
 
           .row.total {
-            font-size: 16px;
+            font-size: 13px;
             font-weight: 700;
             padding-top: 2px;
           }
 
           .footer {
             text-align: center;
-            font-size: 13px;
+            font-size: 11px;
           }
 
           @media print {
