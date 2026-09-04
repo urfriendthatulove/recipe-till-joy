@@ -16,6 +16,7 @@ import { PAYMENT_LABEL } from "@/lib/sales";
 
 const IMIN_PAGE_WIDTH_DOTS = 384; // usable dot width on iMin's 58mm printer
 const IMIN_DIVIDER_CHARS = 32;
+const IMIN_BITMAP_PADDING = 12;
 
 function toAsciiThermal(value: string) {
   return value
@@ -36,7 +37,152 @@ function buildThermalRow(label: string, value: string) {
   return `${clippedLeft}${spaces}${right}`;
 }
 
+function buildReceiptLines(sale: Sale) {
+  const lines = [
+    { text: "RAKYAT COFFEE'S", align: "center" as const, size: 30, weight: "700" as const },
+    { text: "POS", align: "center" as const, size: 23, weight: "700" as const },
+    { text: "", align: "left" as const, size: 12, weight: "400" as const },
+    {
+      text: toAsciiThermal(sale.saleNumber),
+      align: "center" as const,
+      size: 20,
+      weight: "600" as const,
+    },
+    {
+      text: toAsciiThermal(formatTanggalJam(sale.createdAt)),
+      align: "center" as const,
+      size: 18,
+      weight: "400" as const,
+    },
+    {
+      text: "-".repeat(IMIN_DIVIDER_CHARS),
+      align: "left" as const,
+      size: 18,
+      weight: "400" as const,
+    },
+  ];
+
+  for (const item of sale.items) {
+    lines.push({
+      text: buildThermalRow(`${item.qty}x ${item.nameSnapshot}`, formatRp(item.lineNet)),
+      align: "left" as const,
+      size: 20,
+      weight: "600" as const,
+    });
+  }
+
+  lines.push({
+    text: "-".repeat(IMIN_DIVIDER_CHARS),
+    align: "left" as const,
+    size: 18,
+    weight: "400" as const,
+  });
+  lines.push({
+    text: buildThermalRow("Subtotal", formatRp(sale.subtotal)),
+    align: "left" as const,
+    size: 20,
+    weight: "500" as const,
+  });
+
+  if (sale.discount > 0) {
+    lines.push({
+      text: buildThermalRow("Diskon", `- ${formatRp(sale.discount)}`),
+      align: "left" as const,
+      size: 20,
+      weight: "500" as const,
+    });
+  }
+
+  lines.push({
+    text: buildThermalRow("TOTAL", formatRp(sale.netSales)),
+    align: "left" as const,
+    size: 22,
+    weight: "700" as const,
+  });
+  lines.push({
+    text: buildThermalRow("Pemb", PAYMENT_LABEL[sale.paymentMethod]),
+    align: "left" as const,
+    size: 20,
+    weight: "500" as const,
+  });
+  lines.push({
+    text: "-".repeat(IMIN_DIVIDER_CHARS),
+    align: "left" as const,
+    size: 18,
+    weight: "400" as const,
+  });
+
+  const note = sale.note?.trim();
+  if (note) {
+    lines.push({
+      text: toAsciiThermal(`Catatan: ${note}`),
+      align: "center" as const,
+      size: 18,
+      weight: "400" as const,
+    });
+  }
+
+  lines.push({ text: "TERIMA KASIH", align: "center" as const, size: 20, weight: "700" as const });
+  return lines;
+}
+
+function printReceiptAsBitmap(printer: IminPrinterInstance, sale: Sale) {
+  if (typeof document === "undefined") {
+    throw new Error("Bitmap receipt membutuhkan DOM.");
+  }
+
+  const lines = buildReceiptLines(sale);
+  const canvas = document.createElement("canvas");
+  const lineHeights = lines.map((line) => Math.ceil(line.size * 1.45));
+  const contentHeight = lineHeights.reduce((sum, height) => sum + height, 0);
+  const canvasWidth = IMIN_PAGE_WIDTH_DOTS;
+  const canvasHeight = contentHeight + IMIN_BITMAP_PADDING * 2;
+
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Canvas context tidak tersedia untuk bitmap bon.");
+  }
+
+  context.fillStyle = "#FFFFFF";
+  context.fillRect(0, 0, canvasWidth, canvasHeight);
+  context.fillStyle = "#000000";
+  context.textBaseline = "top";
+  context.imageSmoothingEnabled = false;
+
+  let y = IMIN_BITMAP_PADDING;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const lineHeight = lineHeights[index];
+    context.font = `${line.weight} ${line.size}px Arial`;
+
+    const textWidth = context.measureText(line.text).width;
+    let x = IMIN_BITMAP_PADDING;
+    if (line.align === "center") {
+      x = Math.max(IMIN_BITMAP_PADDING, (canvasWidth - textWidth) / 2);
+    }
+
+    context.fillText(line.text, x, y);
+    y += lineHeight;
+  }
+
+  printer.initPrinter(printer.PrintConnectType.SPI);
+  printer.setPageFormat(1);
+  printer.setTextWidth(IMIN_PAGE_WIDTH_DOTS);
+  printer.setLeftMargin(0);
+  printer.printSingleBitmap?.(canvas.toDataURL("image/png"));
+  printer.printAndFeedPaper(80);
+  printer.partialCut();
+}
+
 function printReceiptViaIminSdk(printer: IminPrinterInstance, sale: Sale) {
+  if (printer.printSingleBitmap) {
+    printReceiptAsBitmap(printer, sale);
+    return;
+  }
+
   printer.initPrinter(printer.PrintConnectType.SPI);
   printer.setPageFormat(1);
   printer.setTextWidth(IMIN_PAGE_WIDTH_DOTS);

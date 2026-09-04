@@ -18,6 +18,7 @@ export interface IminPrinterInstance {
   setTextStyle: (style: 0 | 1 | 2 | 3) => void;
   setTextLineSpacing?: (space: number) => void;
   printText: (text: string, type?: 0 | 1) => void;
+  printSingleBitmap?: (imgResources: string) => void;
   printColumnsText: (
     colTextArr: string[],
     colWidthArr: number[],
