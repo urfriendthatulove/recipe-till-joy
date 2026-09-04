@@ -18,11 +18,12 @@ function escapeHtml(value: string) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
+    .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
 
 function buildReceiptHtml(sale: Sale) {
+  const receiptWidth = "58mm";
   const footerNote = sale.note?.trim() ? `Catatan: ${escapeHtml(sale.note.trim())}` : "";
   const itemsHtml = sale.items
     .map(
@@ -42,8 +43,14 @@ function buildReceiptHtml(sale: Sale) {
         <title>Bon ${escapeHtml(sale.saleNumber)}</title>
         <style>
           @page {
-            size: 58mm auto;
+            size: ${receiptWidth} auto;
             margin: 0;
+          }
+
+          html {
+            width: ${receiptWidth};
+            min-width: ${receiptWidth};
+            max-width: ${receiptWidth};
           }
 
           html, body {
@@ -57,9 +64,12 @@ function buildReceiptHtml(sale: Sale) {
           }
 
           body {
-            width: 58mm;
+            width: ${receiptWidth};
+            min-width: ${receiptWidth};
+            max-width: ${receiptWidth};
             box-sizing: border-box;
             padding: 8px 7px 10px;
+            overflow: hidden;
           }
 
           .receipt {
@@ -137,8 +147,11 @@ function buildReceiptHtml(sale: Sale) {
           }
 
           @media print {
-            body {
+            html, body {
               margin: 0;
+              width: ${receiptWidth};
+              min-width: ${receiptWidth};
+              max-width: ${receiptWidth};
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }
@@ -179,7 +192,9 @@ function printReceipt(sale: Sale) {
   const fallbackPopup = () => {
     const printWindow = window.open("", "_blank", "width=420,height=700");
     if (!printWindow) {
-      console.warn("Browser memblokir popup cetak bon dan iframe cetak. Izinkan popup atau aktifkan printer default.");
+      console.warn(
+        "Browser memblokir popup cetak bon dan iframe cetak. Izinkan popup atau aktifkan printer default.",
+      );
       return;
     }
     printWindow.document.open();
