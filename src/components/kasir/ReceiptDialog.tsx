@@ -776,7 +776,7 @@ export function ReceiptDialog({
           <Button variant="outline" onClick={handlePrint} disabled={!sale || isPrinting}>
             {isPrinting ? "Mencetak..." : "Cetak bon"}
           </Button>
-          <Button onClick={handleNewTransaction}>Transaksi baru</Button>
+          <Button onClick={handleNewTransaction}>Selesai</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
