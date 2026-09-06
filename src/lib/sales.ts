@@ -30,6 +30,7 @@ export interface SaleInput {
   paymentMethod: Sale["paymentMethod"];
   /** diskon tambahan tingkat nota (Rupiah) */
   discount?: number;
+  customerName?: string;
   note?: string;
 }
 
@@ -144,6 +145,7 @@ async function createSaleLocally(clean: CartLine[], input: SaleInput) {
         paymentMethod: input.paymentMethod,
         voided: 0,
       };
+      if (input.customerName?.trim()) sale.customerName = input.customerName.trim();
       if (input.note?.trim()) sale.note = input.note.trim();
       await db.sales.add(sale);
 
@@ -192,12 +194,23 @@ export async function createSale(input: SaleInput) {
       })),
       p_payment_method: input.paymentMethod,
       p_bill_discount: input.discount ?? 0,
+      p_customer_name: input.customerName ?? null,
       p_note: input.note ?? null,
     };
 
     let { data, error } = await supabase.rpc("app_create_sale", rpcPayload);
 
     // Compatibility path for older SQL function variants without p_note argument.
+    if (error && isLegacyCreateSaleRpcSignature(error)) {
+      ({ data, error } = await supabase.rpc("app_create_sale", {
+        p_lines: rpcPayload.p_lines,
+        p_payment_method: rpcPayload.p_payment_method,
+        p_bill_discount: rpcPayload.p_bill_discount,
+        p_note: rpcPayload.p_note,
+      }));
+    }
+
+    // Compatibility path for SQL variants without p_customer_name and p_note.
     if (error && isLegacyCreateSaleRpcSignature(error)) {
       ({ data, error } = await supabase.rpc("app_create_sale", {
         p_lines: rpcPayload.p_lines,
@@ -241,6 +254,7 @@ export async function createSale(input: SaleInput) {
       id: row.id,
       saleNumber: row.sale_number,
       createdAt: row.created_at,
+      customerName: row.customer_name ?? undefined,
       items: parsedItems,
       subtotal: Number(row.subtotal ?? 0),
       discount: Number(row.discount ?? 0),

@@ -116,6 +116,7 @@ export interface Sale {
   id: string;
   saleNumber: string;
   createdAt: string;
+  customerName?: string;
   items: SaleItem[];
   subtotal: number;
   discount: number;

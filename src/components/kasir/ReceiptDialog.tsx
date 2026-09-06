@@ -79,6 +79,7 @@ function buildThermalRow(label: string, value: string) {
 }
 
 function buildReceiptLines(sale: Sale) {
+  const customerName = sale.customerName?.trim();
   const lines: ReceiptLine[] = [
     {
       kind: "text",
@@ -161,6 +162,15 @@ function buildReceiptLines(sale: Sale) {
     size: 20,
     weight: "500" as const,
   });
+  if (customerName) {
+    lines.push({
+      kind: "pair",
+      label: "Nama",
+      value: toAsciiThermal(customerName),
+      size: 20,
+      weight: "500" as const,
+    });
+  }
   lines.push({
     kind: "text",
     text: "-".repeat(IMIN_DIVIDER_CHARS),
@@ -438,6 +448,7 @@ function escapeHtml(value: string) {
 function buildReceiptHtml(sale: Sale) {
   const receiptWidth = "57mm";
   const receiptHeight = "81mm";
+  const customerName = sale.customerName?.trim() ? escapeHtml(sale.customerName.trim()) : "";
   const footerNote = sale.note?.trim() ? `Catatan: ${escapeHtml(sale.note.trim())}` : "";
   const itemsHtml = sale.items
     .map(
@@ -608,6 +619,7 @@ function buildReceiptHtml(sale: Sale) {
             ${sale.discount > 0 ? `<div class="row"><span>Diskon</span><span>- ${formatRp(sale.discount)}</span></div>` : ""}
             <div class="row total"><span>TOTAL</span><span>${formatRp(sale.netSales)}</span></div>
             <div class="row"><span>Pemb</span><span>${escapeHtml(PAYMENT_LABEL[sale.paymentMethod])}</span></div>
+            ${customerName ? `<div class="row"><span>Nama</span><span>${customerName}</span></div>` : ""}
           </div>
 
           ${footerNote ? `<div class="footer">${footerNote}</div>` : ""}
@@ -733,6 +745,7 @@ export function ReceiptDialog({
                 {sale.discount > 0 ? <Row label="Diskon" value={`- ${formatRp(sale.discount)}`} /> : null}
                 <Row label="TOTAL" value={formatRp(sale.netSales)} strong />
                 <Row label="Pemb" value={PAYMENT_LABEL[sale.paymentMethod]} />
+                {sale.customerName?.trim() ? <Row label="Nama" value={sale.customerName.trim()} /> : null}
               </div>
 
               {sale.note?.trim() ? (

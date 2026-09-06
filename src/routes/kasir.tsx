@@ -77,6 +77,7 @@ function KasirView() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [discountInput, setDiscountInput] = useState("");
   const [payment, setPayment] = useState<Sale["paymentMethod"]>("cash");
+  const [customerName, setCustomerName] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -188,6 +189,7 @@ function KasirView() {
   function resetCart() {
     setCart([]);
     setDiscountInput("");
+    setCustomerName("");
     setNote("");
     setPayment("cash");
   }
@@ -203,6 +205,7 @@ function KasirView() {
         lines: cart,
         paymentMethod: payment,
         discount: billDiscount,
+        customerName,
         note,
       });
       setReceipt(sale);
@@ -382,12 +385,22 @@ function KasirView() {
               </div>
 
               <div className="grid gap-1.5">
+                <Label htmlFor="customerName">Nama pembeli (opsional)</Label>
+                <Input
+                  id="customerName"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="Contoh: Rina"
+                />
+              </div>
+
+              <div className="grid gap-1.5">
                 <Label htmlFor="note">Catatan (opsional)</Label>
                 <Input
                   id="note"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Atas nama Rina, dine-in"
+                  placeholder="Contoh: dine-in"
                 />
               </div>
             </div>

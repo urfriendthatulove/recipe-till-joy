@@ -84,6 +84,7 @@ create table if not exists public.sales (
   id uuid primary key default gen_random_uuid(),
   sale_number text not null,
   created_at timestamptz not null default now(),
+  customer_name text,
   items jsonb not null default '[]'::jsonb,
   subtotal numeric not null default 0,
   discount numeric not null default 0,
@@ -94,6 +95,9 @@ create table if not exists public.sales (
   note text,
   voided boolean not null default false
 );
+
+alter table public.sales
+  add column if not exists customer_name text;
 
 create extension if not exists pgcrypto;
 
@@ -319,12 +323,14 @@ create or replace function public.app_create_sale(
   p_lines jsonb,
   p_payment_method text,
   p_bill_discount numeric default 0,
+  p_customer_name text default null,
   p_note text default null
 )
 returns table (
   id uuid,
   sale_number text,
   created_at timestamptz,
+  customer_name text,
   items jsonb,
   subtotal numeric,
   discount numeric,
@@ -502,6 +508,7 @@ begin
     id,
     sale_number,
     created_at,
+    customer_name,
     items,
     subtotal,
     discount,
@@ -516,6 +523,7 @@ begin
     v_sale_id,
     v_sale_number,
     v_now,
+    nullif(trim(coalesce(p_customer_name, '')), ''),
     v_items,
     v_subtotal,
     v_line_discount + v_bill_discount,
@@ -532,6 +540,7 @@ begin
     s.id,
     s.sale_number,
     s.created_at,
+    s.customer_name,
     s.items,
     s.subtotal,
     s.discount,
@@ -761,7 +770,7 @@ with check (public.app_is_admin());
 grant execute on function public.app_login(text, text) to anon, authenticated;
 grant execute on function public.app_restore_session() to anon, authenticated;
 grant execute on function public.app_logout() to anon, authenticated;
-grant execute on function public.app_create_sale(jsonb, text, numeric, text) to anon, authenticated;
+grant execute on function public.app_create_sale(jsonb, text, numeric, text, text) to anon, authenticated;
 grant execute on function public.app_void_sale(uuid, text) to anon, authenticated;
 
 grant execute on function public.app_current_actor() to anon, authenticated;
