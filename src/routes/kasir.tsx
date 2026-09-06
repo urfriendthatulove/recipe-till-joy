@@ -124,6 +124,7 @@ function KasirView() {
     Math.max(parseLocaleNumber(discountInput), 0),
     Math.max(subtotal - lineDiscount, 0),
   );
+  const customerNameValue = customerName.trim();
   const total = subtotal - lineDiscount - billDiscount;
   const estCost = lines.reduce(
     (s, l) => s + computeCost(l.menu, recipes, materialById) * l.line.qty,
@@ -199,13 +200,17 @@ function KasirView() {
       toast.error("Keranjang masih kosong");
       return;
     }
+    if (!customerNameValue) {
+      toast.error("Nama pembeli wajib diisi");
+      return;
+    }
     setSaving(true);
     try {
       const sale = await createSale({
         lines: cart,
         paymentMethod: payment,
         discount: billDiscount,
-        customerName,
+        customerName: customerNameValue,
         note,
       });
       setReceipt(sale);
@@ -391,12 +396,13 @@ function KasirView() {
               </div>
 
               <div className="grid gap-1.5">
-                <Label htmlFor="customerName">Nama pembeli (opsional)</Label>
+                <Label htmlFor="customerName">Nama pembeli</Label>
                 <Input
                   id="customerName"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Contoh: Rina"
+                  placeholder="Masukkan nama pembeli"
+                  required
                 />
               </div>
 
@@ -452,7 +458,7 @@ function KasirView() {
               <Button
                 className="flex-1"
                 onClick={pay}
-                disabled={cart.length === 0 || saving || shortages.length > 0}
+                disabled={cart.length === 0 || saving || shortages.length > 0 || !customerNameValue}
               >
                 {saving ? "Menyimpan…" : `Bayar ${formatRp(total)}`}
               </Button>
