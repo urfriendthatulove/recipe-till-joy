@@ -1,4 +1,5 @@
 import { CheckCircle2 } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -491,27 +492,6 @@ function buildReceiptHtml(sale: Sale) {
             overflow: hidden;
           }
 
-          .actions {
-            width: ${receiptWidth};
-            box-sizing: border-box;
-            padding: 8px 6px;
-            display: flex;
-            justify-content: space-between;
-            gap: 6px;
-          }
-
-          .actions button {
-            border: 1px solid #111;
-            background: #fff;
-            color: #111;
-            font: inherit;
-            font-size: 11px;
-            font-weight: 700;
-            padding: 6px;
-            width: 100%;
-            cursor: pointer;
-          }
-
           .receipt {
             width: 100%;
           }
@@ -588,10 +568,6 @@ function buildReceiptHtml(sale: Sale) {
           }
 
           @media print {
-            .actions {
-              display: none;
-            }
-
             * {
               text-shadow: none !important;
             }
@@ -614,11 +590,6 @@ function buildReceiptHtml(sale: Sale) {
         </style>
       </head>
       <body>
-        <div class="actions">
-          <button type="button" onclick="window.print()">Cetak bon</button>
-          <button type="button" onclick="window.close()">Tutup</button>
-        </div>
-
         <div class="receipt">
           <div class="center brand">RAKYAT COFFEE'S</div>
           <div class="center title">POS</div>
@@ -646,6 +617,46 @@ function buildReceiptHtml(sale: Sale) {
     </html>`;
 }
 
+async function printReceiptViaIframe(sale: Sale) {
+  if (typeof document === "undefined") {
+    throw new Error("Cetak browser membutuhkan DOM.");
+  }
+
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.setAttribute("aria-hidden", "true");
+
+  document.body.appendChild(iframe);
+
+  try {
+    const iframeDoc = iframe.contentWindow?.document;
+    if (!iframeDoc || !iframe.contentWindow) {
+      throw new Error("Dokumen cetak tidak tersedia.");
+    }
+
+    iframeDoc.open();
+    iframeDoc.write(buildReceiptHtml(sale));
+    iframeDoc.close();
+
+    await new Promise<void>((resolve) => {
+      iframe.onload = () => resolve();
+      setTimeout(() => resolve(), 200);
+    });
+
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+  } finally {
+    setTimeout(() => {
+      iframe.remove();
+    }, 800);
+  }
+}
+
 async function printReceipt(sale: Sale) {
   const iminPrinter = getIminPrinter();
   if (iminPrinter) {
@@ -657,17 +668,7 @@ async function printReceipt(sale: Sale) {
     }
   }
 
-  const html = buildReceiptHtml(sale);
-  const printWindow = window.open("", "_blank", "width=420,height=780");
-  if (!printWindow) {
-    console.warn("Browser memblokir popup bon. Izinkan popup agar halaman bon bisa dibuka.");
-    return;
-  }
-
-  printWindow.document.open();
-  printWindow.document.write(html);
-  printWindow.document.close();
-  printWindow.focus();
+  await printReceiptViaIframe(sale);
 }
 
 export function ReceiptDialog({
@@ -677,10 +678,20 @@ export function ReceiptDialog({
   sale: Sale | null;
   onOpenChange: (v: boolean) => void;
 }) {
-  const handleNewTransaction = () => {
-    if (sale) {
-      void printReceipt(sale);
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const handlePrint = async () => {
+    if (!sale || isPrinting) return;
+
+    try {
+      setIsPrinting(true);
+      await printReceipt(sale);
+    } finally {
+      setIsPrinting(false);
     }
+  };
+
+  const handleNewTransaction = () => {
     onOpenChange(false);
   };
 
@@ -698,31 +709,60 @@ export function ReceiptDialog({
 
         {sale ? (
           <div className="space-y-3 text-sm">
-            <div className="space-y-1">
-              {sale.items.map((i) => (
-                <div key={i.id} className="flex justify-between gap-3">
-                  <span className="truncate">
-                    {i.qty}× {i.nameSnapshot}
-                  </span>
-                  <span className="tabular-nums">{formatRp(i.lineNet)}</span>
-                </div>
-              ))}
-            </div>
-            <div className="space-y-1 border-t border-border pt-3">
-              <Row label="Subtotal" value={formatRp(sale.subtotal)} />
-              {sale.discount > 0 ? (
-                <Row label="Diskon" value={`− ${formatRp(sale.discount)}`} />
+            <div className="mx-auto w-full max-w-[320px] rounded-md border border-dashed border-zinc-400 bg-white p-3 font-mono text-[13px] font-semibold text-zinc-900">
+              <p className="text-center text-[18px] leading-tight">RAKYAT COFFEE'S</p>
+              <p className="text-center text-[14px] leading-tight">POS</p>
+              <div className="my-2 border-y border-dashed border-zinc-500 py-2 text-center text-[12px]">
+                <p>{sale.saleNumber}</p>
+                <p>{formatTanggalJam(sale.createdAt)}</p>
+              </div>
+
+              <div className="space-y-1">
+                {sale.items.map((i) => (
+                  <div key={i.id} className="flex items-start justify-between gap-3">
+                    <span className="break-words">
+                      {i.qty}x {i.nameSnapshot}
+                    </span>
+                    <span className="shrink-0 tabular-nums">{formatRp(i.lineNet)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="my-2 border-y border-dashed border-zinc-500 py-2">
+                <Row label="Subtotal" value={formatRp(sale.subtotal)} />
+                {sale.discount > 0 ? <Row label="Diskon" value={`- ${formatRp(sale.discount)}`} /> : null}
+                <Row label="TOTAL" value={formatRp(sale.netSales)} strong />
+                <Row label="Pemb" value={PAYMENT_LABEL[sale.paymentMethod]} />
+              </div>
+
+              {sale.note?.trim() ? (
+                <p className="border-b border-dashed border-zinc-500 pb-2 text-center text-[12px]">
+                  Catatan: {sale.note.trim()}
+                </p>
               ) : null}
-              <Row label="Total" value={formatRp(sale.netSales)} strong />
-              <Row label="Pembayaran" value={PAYMENT_LABEL[sale.paymentMethod]} />
+
+              <p className="pt-2 text-center text-[13px]">TERIMA KASIH</p>
             </div>
+
+            <div className="space-y-1 border-t border-border pt-3">
+              <p className="text-xs text-muted-foreground">Ringkasan transaksi</p>
+              <div className="space-y-1">
+                <Row label="Subtotal" value={formatRp(sale.subtotal)} />
+                {sale.discount > 0 ? <Row label="Diskon" value={`- ${formatRp(sale.discount)}`} /> : null}
+                <Row label="Total" value={formatRp(sale.netSales)} strong />
+              </div>
+            </div>
+
             <p className="text-xs text-muted-foreground">
               Stok bahan sudah otomatis berkurang sesuai resep.
             </p>
           </div>
         ) : null}
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={handlePrint} disabled={!sale || isPrinting}>
+            {isPrinting ? "Mencetak..." : "Cetak bon"}
+          </Button>
           <Button onClick={handleNewTransaction}>Transaksi baru</Button>
         </DialogFooter>
       </DialogContent>
