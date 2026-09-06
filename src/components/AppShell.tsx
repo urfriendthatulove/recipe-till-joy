@@ -89,7 +89,7 @@ export function AppShell({
             )}
           </nav>
 
-          <div className="mt-6 rounded-2xl border border-border bg-secondary p-3">
+          <div className="mt-6 border-t border-border pt-4">
             <p className="text-sm font-semibold text-foreground">{user?.displayName ?? user?.username}</p>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">
               {user?.role === "admin" ? "Manager" : "Barista"}
@@ -99,7 +99,7 @@ export function AppShell({
               onClick={() => {
                 void signOut();
               }}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-background"
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
             >
               <LogOut className="size-3.5" /> Logout
             </button>

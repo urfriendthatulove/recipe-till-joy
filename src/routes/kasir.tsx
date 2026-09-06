@@ -227,7 +227,7 @@ function KasirView() {
         </Button>
       }
     >
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
         {/* Daftar menu */}
         <div>
           <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -296,13 +296,13 @@ function KasirView() {
             ) : (
               <div className="mt-3 space-y-3">
                 {lines.map(({ line, menu, net }) => (
-                  <div key={line.id} className="flex items-start gap-2">
+                  <div key={line.id} className="rounded-lg border border-border/70 p-2">
                     <button
                       type="button"
                       onClick={() => openEditLine(line)}
-                      className="min-w-0 flex-1 rounded-lg border border-transparent p-1 text-left transition-colors hover:border-border hover:bg-secondary/40"
+                      className="w-full rounded-md border border-transparent px-1 py-1 text-left transition-colors hover:border-border hover:bg-secondary/40"
                     >
-                      <p className="truncate text-sm font-medium">{line.displayName}</p>
+                      <p className="text-sm font-medium leading-snug break-words">{line.displayName}</p>
                       <p className="text-xs text-muted-foreground">{formatRp(menu.price)}</p>
                       {line.modifiers.length > 0 ? (
                         <p className="mt-1 text-[11px] text-muted-foreground">
@@ -310,46 +310,52 @@ function KasirView() {
                         </p>
                       ) : null}
                     </button>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="size-7"
-                        aria-label={`Kurangi ${menu.name}`}
-                        onClick={() => setQty(line.id, line.qty - 1)}
-                      >
-                        <Minus className="size-3.5" />
-                      </Button>
-                      <span className="w-6 text-center text-sm tabular-nums">{line.qty}</span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="size-7"
-                        aria-label={`Tambah ${menu.name}`}
-                        onClick={() => setQty(line.id, line.qty + 1)}
-                      >
-                        <Plus className="size-3.5" />
-                      </Button>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1 rounded-md border border-border/80 bg-secondary/30 px-1 py-0.5">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-7"
+                          aria-label={`Kurangi ${menu.name}`}
+                          onClick={() => setQty(line.id, line.qty - 1)}
+                        >
+                          <Minus className="size-3.5" />
+                        </Button>
+                        <span className="w-6 text-center text-sm tabular-nums">{line.qty}</span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-7"
+                          aria-label={`Tambah ${menu.name}`}
+                          onClick={() => setQty(line.id, line.qty + 1)}
+                        >
+                          <Plus className="size-3.5" />
+                        </Button>
+                      </div>
+
+                      <span className="text-right text-sm font-semibold tabular-nums">{formatRp(net)}</span>
+
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-7"
+                          aria-label={`Ubah ${menu.name}`}
+                          onClick={() => openEditLine(line)}
+                        >
+                          <PencilLine className="size-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          aria-label={`Hapus ${menu.name}`}
+                          onClick={() => removeLine(line.id)}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
                     </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      aria-label={`Hapus ${menu.name}`}
-                      onClick={() => removeLine(line.id)}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                    <span className="w-20 text-right text-sm tabular-nums">{formatRp(net)}</span>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-7"
-                      aria-label={`Ubah ${menu.name}`}
-                      onClick={() => openEditLine(line)}
-                    >
-                      <PencilLine className="size-3.5" />
-                    </Button>
                   </div>
                 ))}
               </div>
