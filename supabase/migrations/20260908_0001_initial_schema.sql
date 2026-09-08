@@ -1,3 +1,5 @@
+create extension if not exists pgcrypto;
+
 -- 1) materials
 create table if not exists public.materials (
   id uuid primary key default gen_random_uuid(),
@@ -26,7 +28,6 @@ update public.materials
 set material_type = 'single'
 where material_type is null;
 
--- keep legacy rows compatible with newer app logic
 alter table public.materials
   alter column material_type set not null,
   alter column material_type set default 'single';
@@ -121,9 +122,7 @@ create table if not exists public.mobile_orders (
   cancelled_at timestamptz
 );
 
-create extension if not exists pgcrypto;
-
--- 7) app_users (login aplikasi, password di-hash)
+-- 8) app_users (login aplikasi, password di-hash)
 create table if not exists public.app_users (
   id uuid primary key default gen_random_uuid(),
   username text not null unique,
@@ -139,7 +138,6 @@ alter table public.app_users
   add column if not exists password_hash text,
   add column if not exists updated_at timestamptz not null default now();
 
--- migrasi dari skema lama jika sebelumnya masih pakai kolom password plain text
 do $$
 begin
   if exists (
@@ -170,7 +168,7 @@ alter table public.app_users
   alter column role set not null,
   alter column username set not null;
 
--- 8) app_sessions (token sesi di-hash)
+-- 9) app_sessions
 create table if not exists public.app_sessions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.app_users(id) on delete cascade,
@@ -180,7 +178,6 @@ create table if not exists public.app_sessions (
   revoked_at timestamptz
 );
 
--- default akun awal (password di-hash)
 insert into public.app_users (username, password_hash, display_name, role, is_active, created_at, updated_at)
 values
   ('admin', crypt('admin123', gen_salt('bf', 12)), 'Manager', 'admin', true, now(), now()),
@@ -192,7 +189,6 @@ on conflict (username) do update set
   is_active = excluded.is_active,
   updated_at = now();
 
--- helper auth functions
 create or replace function public.app_hash_token(p_token text)
 returns text
 language sql
@@ -666,6 +662,10 @@ create index if not exists recipes_menu_idx on public.recipes(menu_id);
 create index if not exists recipes_material_idx on public.recipes(material_id);
 create index if not exists sales_created_at_idx on public.sales(created_at desc);
 create index if not exists sales_number_idx on public.sales(sale_number);
+create index if not exists mobile_orders_created_at_idx on public.mobile_orders(created_at desc);
+create index if not exists mobile_orders_status_idx on public.mobile_orders(status, created_at desc);
+create unique index if not exists mobile_orders_external_order_idx on public.mobile_orders(external_order_id)
+where external_order_id is not null;
 create index if not exists app_users_username_idx on public.app_users(username);
 create index if not exists app_sessions_user_idx on public.app_sessions(user_id);
 create index if not exists app_sessions_token_idx on public.app_sessions(token_hash);
@@ -681,7 +681,6 @@ alter table public.mobile_orders enable row level security;
 alter table public.app_users enable row level security;
 alter table public.app_sessions enable row level security;
 
--- clear legacy permissive policies
 drop policy if exists "materials_all_access" on public.materials;
 drop policy if exists "stock_movements_all_access" on public.stock_movements;
 drop policy if exists "menu_categories_all_access" on public.menu_categories;
@@ -692,7 +691,6 @@ drop policy if exists "mobile_orders_read_authenticated" on public.mobile_orders
 drop policy if exists "mobile_orders_write_authenticated" on public.mobile_orders;
 drop policy if exists "app_users_read_access" on public.app_users;
 
--- no direct read/write for auth tables
 drop policy if exists "app_users_no_direct_access" on public.app_users;
 create policy "app_users_no_direct_access"
 on public.app_users
@@ -707,7 +705,6 @@ for all
 using (false)
 with check (false);
 
--- materials
 drop policy if exists "materials_read_authenticated" on public.materials;
 create policy "materials_read_authenticated"
 on public.materials
@@ -721,7 +718,6 @@ for all
 using (public.app_is_admin())
 with check (public.app_is_admin());
 
--- stock movements
 drop policy if exists "stock_movements_read_authenticated" on public.stock_movements;
 create policy "stock_movements_read_authenticated"
 on public.stock_movements
@@ -735,7 +731,6 @@ for all
 using (public.app_is_admin())
 with check (public.app_is_admin());
 
--- categories
 drop policy if exists "menu_categories_read_authenticated" on public.menu_categories;
 create policy "menu_categories_read_authenticated"
 on public.menu_categories
@@ -749,7 +744,6 @@ for all
 using (public.app_is_admin())
 with check (public.app_is_admin());
 
--- menus
 drop policy if exists "menus_read_authenticated" on public.menus;
 create policy "menus_read_authenticated"
 on public.menus
@@ -763,7 +757,6 @@ for all
 using (public.app_is_admin())
 with check (public.app_is_admin());
 
--- recipes
 drop policy if exists "recipes_read_authenticated" on public.recipes;
 create policy "recipes_read_authenticated"
 on public.recipes
@@ -777,7 +770,6 @@ for all
 using (public.app_is_admin())
 with check (public.app_is_admin());
 
--- sales
 drop policy if exists "sales_read_authenticated" on public.sales;
 create policy "sales_read_authenticated"
 on public.sales
@@ -791,7 +783,6 @@ for all
 using (public.app_is_admin())
 with check (public.app_is_admin());
 
--- mobile orders
 create policy "mobile_orders_read_authenticated"
 on public.mobile_orders
 for select
@@ -803,10 +794,7 @@ for all
 using (public.app_is_authenticated())
 with check (public.app_is_authenticated());
 
-create index if not exists mobile_orders_created_at_idx on public.mobile_orders(created_at desc);
-create index if not exists mobile_orders_status_idx on public.mobile_orders(status, created_at desc);
-create unique index if not exists mobile_orders_external_order_idx on public.mobile_orders(external_order_id)
-where external_order_id is not null;
+drop policy if exists "app_users_read_authenticated" on public.app_users;
 
 -- function permissions
 grant execute on function public.app_login(text, text) to anon, authenticated;
@@ -814,7 +802,6 @@ grant execute on function public.app_restore_session() to anon, authenticated;
 grant execute on function public.app_logout() to anon, authenticated;
 grant execute on function public.app_create_sale(jsonb, text, numeric, text, text) to anon, authenticated;
 grant execute on function public.app_void_sale(uuid, text) to anon, authenticated;
-
 grant execute on function public.app_current_actor() to anon, authenticated;
 grant execute on function public.app_is_authenticated() to anon, authenticated;
 grant execute on function public.app_role() to anon, authenticated;

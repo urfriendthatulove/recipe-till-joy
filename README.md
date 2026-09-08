@@ -103,7 +103,11 @@ VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
+Kalau Anda pindah ke project Supabase baru, update URL dan key di root `.env` sesuai project baru tersebut. Untuk backend POS, tambahkan juga `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, dan `POS_API_KEY`.
+
 3. Jalankan isi file [supabase-schema.sql](supabase-schema.sql) di SQL Editor Supabase.
+
+Kalau Anda ingin menjalankan migration dengan struktur folder Supabase yang lebih rapi, pakai file [supabase/migrations/20260908_0001_initial_schema.sql](supabase/migrations/20260908_0001_initial_schema.sql) sebagai source utama.
 
 Script tersebut akan otomatis:
 
@@ -126,3 +130,53 @@ Catatan:
 
 - Nilai role wajib huruf kecil: `admin` atau `user`.
 - Untuk migrasi dari skema lama, script otomatis mengonversi kolom password plain text ke `password_hash`.
+
+## Mobile Order API Setup
+
+Kalau mobile app akan kirim order ke backend POS, tambahkan env berikut di backend project:
+
+```env
+POS_API_KEY_HASH=sha256-dari-secret-api-key
+POS_API_KEY_SALT=opsional-tetapi-disarankan
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+```
+
+Endpoint yang tersedia:
+
+- `POST /api/mobile/orders` untuk membuat order baru
+- `GET /api/mobile/orders` untuk melihat daftar order
+- `GET /api/mobile/orders/:id` untuk detail order
+- `PATCH /api/mobile/orders/:id` untuk ubah status order
+
+Gunakan header:
+
+```http
+Authorization: Bearer <POS_API_KEY>
+Content-Type: application/json
+```
+
+API key disimpan sebagai hash SHA-256 di backend, jadi yang tersimpan di env bukan secret mentah. Kalau ingin lapisan ekstra, isi `POS_API_KEY_SALT` lalu hash yang disimpan harus dihitung dari `salt:key`.
+
+Contoh body saat membuat order:
+
+```json
+{
+   "externalOrderId": "MO-12345",
+   "customerName": "Budi",
+   "customerPhone": "08123456789",
+   "tableName": "A-12",
+   "note": "Tanpa es",
+   "discount": 0,
+   "items": [
+      {
+         "menuItemId": "uuid-menu-di-supabase",
+         "qty": 2,
+         "note": "Less sugar",
+         "modifiers": ["ice"]
+      }
+   ]
+}
+```
+
+Order akan disimpan ke tabel `mobile_orders` di Supabase sehingga POS dan mobile app membaca sumber data yang sama.
