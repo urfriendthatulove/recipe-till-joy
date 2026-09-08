@@ -1,6 +1,20 @@
 import { db, uid, type MenuCategory, type MenuItem, type RawMaterial, type RecipeItem, type Sale, type StockMovement } from "./db";
 import { isSupabaseEnabled, supabase } from "./supabase";
 
+async function pruneLocalTableByRemoteIds(
+  table: {
+    toCollection: () => { primaryKeys: () => Promise<unknown[]> };
+    bulkDelete: (keys: readonly string[]) => Promise<unknown>;
+  },
+  remoteIds: Set<string>,
+) {
+  const localIds = (await table.toCollection().primaryKeys()).map((id) => String(id));
+  const staleIds = localIds.filter((id) => !remoteIds.has(id));
+  if (staleIds.length > 0) {
+    await table.bulkDelete(staleIds);
+  }
+}
+
 const materialFromSupabase = (row: any): RawMaterial => ({
   id: row.id,
   name: row.name,
@@ -80,15 +94,15 @@ const movementFromSupabase = (row: any): StockMovement => ({
 
 /**
  * Sinkronkan mirror lokal dari Supabase saat fitur ini aktif.
- * Penting: jangan hapus data lokal terlebih dahulu, agar transaksi lokal
- * (mis. fallback ketika RPC belum tersedia) tetap muncul di laporan.
+ * Supabase menjadi source of truth: data yang tidak ada di Supabase
+ * akan dihapus dari mirror lokal.
  */
 export async function seedIfEmpty() {
   if (!isSupabaseEnabled || !supabase) {
     return;
   }
 
-  const [{ data: materialsData }, { data: categoriesData }, { data: menusData }, { data: recipesData }, { data: salesData }, { data: movementsData }] = await Promise.all([
+  const [materialsRes, categoriesRes, menusRes, recipesRes, salesRes, movementsRes] = await Promise.all([
     supabase.from("materials").select("*"),
     supabase.from("menu_categories").select("*"),
     supabase.from("menus").select("*"),
@@ -96,6 +110,25 @@ export async function seedIfEmpty() {
     supabase.from("sales").select("*"),
     supabase.from("stock_movements").select("*"),
   ]);
+
+  const firstError =
+    materialsRes.error ||
+    categoriesRes.error ||
+    menusRes.error ||
+    recipesRes.error ||
+    salesRes.error ||
+    movementsRes.error;
+
+  if (firstError) {
+    throw firstError;
+  }
+
+  const materialsData = materialsRes.data ?? [];
+  const categoriesData = categoriesRes.data ?? [];
+  const menusData = menusRes.data ?? [];
+  const recipesData = recipesRes.data ?? [];
+  const salesData = salesRes.data ?? [];
+  const movementsData = movementsRes.data ?? [];
 
   const materialRows = (materialsData ?? []).map(materialFromSupabase);
   const categoryRows = (categoriesData ?? []).map(categoryFromSupabase);
@@ -114,6 +147,13 @@ export async function seedIfEmpty() {
       if (recipeRows.length) await db.recipes.bulkPut(recipeRows);
       if (saleRows.length) await db.sales.bulkPut(saleRows);
       if (movementRows.length) await db.movements.bulkPut(movementRows);
+
+      await pruneLocalTableByRemoteIds(db.materials, new Set(materialRows.map((row) => row.id)));
+      await pruneLocalTableByRemoteIds(db.categories, new Set(categoryRows.map((row) => row.id)));
+      await pruneLocalTableByRemoteIds(db.menus, new Set(menuRows.map((row) => row.id)));
+      await pruneLocalTableByRemoteIds(db.recipes, new Set(recipeRows.map((row) => row.id)));
+      await pruneLocalTableByRemoteIds(db.sales, new Set(saleRows.map((row) => row.id)));
+      await pruneLocalTableByRemoteIds(db.movements, new Set(movementRows.map((row) => row.id)));
     },
   );
 }

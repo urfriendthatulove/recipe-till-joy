@@ -43,6 +43,11 @@ function asErrorMessage(err: unknown, fallback: string) {
   return fallback;
 }
 
+function isMenuNotFoundFromRpc(err: unknown) {
+  const message = asErrorMessage(err, "").toLowerCase();
+  return message.includes("menu tidak ditemukan") || message.includes("menu") && message.includes("tidak aktif");
+}
+
 function isLegacyCreateSaleRpcSignature(err: unknown) {
   const message = asErrorMessage(err, "").toLowerCase();
   return (
@@ -182,6 +187,21 @@ export async function createSale(input: SaleInput) {
   if (clean.length === 0) throw new Error("Keranjang masih kosong");
 
   if (isSupabaseEnabled && supabase) {
+    await seedIfEmpty();
+
+    const menuRows = await db.menus.bulkGet(clean.map((line) => line.menuItemId));
+    const activeMenuIds = new Set(
+      menuRows.filter((menu): menu is NonNullable<typeof menu> => Boolean(menu) && menu.isActive === 1).map((menu) => menu.id),
+    );
+
+    const invalidLines = clean.filter((line) => !activeMenuIds.has(line.menuItemId));
+    if (invalidLines.length > 0) {
+      const names = invalidLines.map((line) => line.displayName).slice(0, 3).join(", ");
+      throw new Error(
+        `Menu berikut tidak tersedia/aktif di Supabase: ${names}. Sinkronisasi ketat aktif, silakan refresh lalu pilih menu ulang.`,
+      );
+    }
+
     const rpcPayload = {
       p_lines: clean.map((line) => ({
         menu_item_id: line.menuItemId,
@@ -220,13 +240,14 @@ export async function createSale(input: SaleInput) {
     }
 
     if (error && isLegacyCreateSaleRpcSignature(error)) {
-      console.warn(
-        "RPC app_create_sale tidak ditemukan di Supabase schema cache. Menggunakan transaksi lokal.",
-      );
-      return createSaleLocally(clean, input);
+      throw new Error("RPC app_create_sale belum tersedia di Supabase. Sinkronisasi ketat aktif, transaksi lokal dinonaktifkan.");
     }
 
     if (error) {
+      if (isMenuNotFoundFromRpc(error)) {
+        await seedIfEmpty();
+        throw new Error("Menu pada keranjang tidak sinkron dengan database. Silakan refresh halaman lalu pilih menu ulang.");
+      }
       throw new Error(asErrorMessage(error, "Gagal menyimpan transaksi"));
     }
 
