@@ -3,7 +3,16 @@ import { z } from "zod";
 
 import { uid } from "./db";
 
-type MobileOrderStatus = "new" | "accepted" | "preparing" | "ready" | "completed" | "cancelled";
+const orderStatusValues = [
+  "new",
+  "accepted",
+  "preparing",
+  "ready",
+  "completed",
+  "cancelled",
+] as const;
+
+type MobileOrderStatus = (typeof orderStatusValues)[number];
 
 type MobileOrderItem = {
   id: string;
@@ -38,15 +47,6 @@ type MobileOrderRow = {
   cancelled_at: string | null;
 };
 
-const orderStatusValues: MobileOrderStatus[] = [
-  "new",
-  "accepted",
-  "preparing",
-  "ready",
-  "completed",
-  "cancelled",
-];
-
 const orderItemSchema = z.object({
   menuItemId: z.string().uuid(),
   qty: z.number().int().positive(),
@@ -68,6 +68,8 @@ const updateOrderSchema = z.object({
   status: z.enum(orderStatusValues),
   note: z.string().trim().max(500).optional(),
 });
+
+type OrderItemInput = z.input<typeof orderItemSchema>;
 
 function getEnvValue(env: unknown, keys: string[]) {
   const source = env && typeof env === "object" ? (env as Record<string, unknown>) : null;
@@ -197,7 +199,7 @@ function createAdminClient(env: unknown) {
   });
 }
 
-async function resolveMenuSnapshots(env: unknown, items: z.infer<typeof orderItemSchema>[]) {
+async function resolveMenuSnapshots(env: unknown, items: OrderItemInput[]) {
   const supabase = createAdminClient(env);
   const menuIds = [...new Set(items.map((item) => item.menuItemId))];
   const { data, error } = await supabase
@@ -254,7 +256,7 @@ async function nextOrderNumber(env: unknown, date = new Date()) {
   return `MOB-${ymd}-${String((count ?? 0) + 1).padStart(4, "0")}`;
 }
 
-async function createOrder(env: unknown, payload: z.infer<typeof createOrderSchema>) {
+async function createOrder(env: unknown, payload: z.input<typeof createOrderSchema>) {
   const supabase = createAdminClient(env);
 
   if (payload.externalOrderId) {
@@ -273,11 +275,16 @@ async function createOrder(env: unknown, payload: z.infer<typeof createOrderSche
     }
   }
 
-  const menuById = await resolveMenuSnapshots(env, payload.items);
+  const normalizedItems = payload.items.map((item) => ({
+    ...item,
+    modifiers: item.modifiers ?? [],
+  }));
+
+  const menuById = await resolveMenuSnapshots(env, normalizedItems);
   const orderNumber = await nextOrderNumber(env);
   const ts = new Date().toISOString();
 
-  const items: MobileOrderItem[] = payload.items.map((item) => {
+  const items: MobileOrderItem[] = normalizedItems.map((item) => {
     const menu = menuById.get(item.menuItemId)!;
     const modifiers = item.modifiers.map((value) => value.trim()).filter(Boolean);
     const priceSnapshot = Number(menu.price ?? 0);
@@ -287,11 +294,11 @@ async function createOrder(env: unknown, payload: z.infer<typeof createOrderSche
       id: uid(),
       menuItemId: menu.id,
       menuName: menu.name,
-      menuCode: menu.code,
       priceSnapshot,
       qty: item.qty,
       lineTotal,
-      note: item.note?.trim() || undefined,
+      ...(menu.code ? { menuCode: menu.code } : {}),
+      ...(item.note?.trim() ? { note: item.note.trim() } : {}),
       modifiers,
     };
   });
@@ -375,13 +382,13 @@ async function updateOrder(env: unknown, orderId: string, payload: z.infer<typeo
   };
 
   if (payload.status === "accepted" && !current.acceptedAt) {
-    patch.accepted_at = timestamp;
+    patch["accepted_at"] = timestamp;
   }
   if (payload.status === "completed" && !current.completedAt) {
-    patch.completed_at = timestamp;
+    patch["completed_at"] = timestamp;
   }
   if (payload.status === "cancelled" && !current.cancelledAt) {
-    patch.cancelled_at = timestamp;
+    patch["cancelled_at"] = timestamp;
   }
 
   const { data, error } = await supabase.from("mobile_orders").update(patch).eq("id", orderId).select("*").single();
@@ -431,7 +438,11 @@ async function readJsonBody<T>(request: Request, schema: z.ZodType<T>) {
 
 export async function handleMobileOrdersRequest(request: Request, env: unknown) {
   const pathname = new URL(request.url).pathname.replace(/\/+$/, "") || "/";
-  if (pathname !== "/api/mobile/orders" && !pathname.startsWith("/api/mobile/orders/")) {
+  const pathPrefixes = ["/api/mobile/orders", "/api/orders"];
+  const matchedPrefix = pathPrefixes.find(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+  if (!matchedPrefix) {
     return null;
   }
 
@@ -446,18 +457,18 @@ export async function handleMobileOrdersRequest(request: Request, env: unknown) 
       return jsonResponse({ ok: false, error: "Unauthorized" }, 401, corsHeaders);
     }
 
-    if (request.method === "POST" && pathname === "/api/mobile/orders") {
+    if (request.method === "POST" && pathname === matchedPrefix) {
       const payload = await readJsonBody(request, createOrderSchema);
       const order = await createOrder(env, payload);
       return jsonResponse({ ok: true, data: order }, 201, corsHeaders);
     }
 
-    if (request.method === "GET" && pathname === "/api/mobile/orders") {
+    if (request.method === "GET" && pathname === matchedPrefix) {
       const orders = await listOrders(env, request);
       return jsonResponse({ ok: true, data: orders }, 200, corsHeaders);
     }
 
-    const orderId = pathname.slice("/api/mobile/orders/".length).trim();
+    const orderId = pathname.slice(`${matchedPrefix}/`.length).trim();
     if (!orderId) {
       return jsonResponse({ ok: false, error: "Route tidak ditemukan" }, 404, corsHeaders);
     }
