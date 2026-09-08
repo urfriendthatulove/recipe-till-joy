@@ -1,14 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl =
-  import.meta.env.VITE_SUPABASE_URL ||
-  import.meta.env.NEXT_PUBLIC_SUPABASE_URL ||
+  import.meta.env["VITE_SUPABASE_URL"] ||
+  import.meta.env["NEXT_PUBLIC_SUPABASE_URL"] ||
   "";
 
 const supabaseAnonKey =
-  import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-  import.meta.env.NEXT_PUBLIC_SUPABASE_KEY ||
+  import.meta.env["VITE_SUPABASE_ANON_KEY"] ||
+  import.meta.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] ||
+  import.meta.env["NEXT_PUBLIC_SUPABASE_KEY"] ||
   "";
 
 export const isSupabaseEnabled = Boolean(supabaseUrl && supabaseAnonKey);
@@ -65,7 +65,8 @@ export type SupabaseTableName =
   | "menu_categories"
   | "menus"
   | "recipes"
-  | "sales";
+  | "sales"
+  | "mobile_orders";
 
 export async function supabaseSelect<T>(table: SupabaseTableName, filters?: { column: string; value: unknown }[]) {
   if (!supabase) return [] as T[];
@@ -88,7 +89,7 @@ export async function supabaseInsert<T extends { id?: string }>(table: SupabaseT
 
 export async function supabaseUpdate<T extends { id: string }>(table: SupabaseTableName, row: T) {
   if (!supabase) return null;
-  const { id, ...rest } = row as T & { id: string };
+  const { id, ...rest } = row as { id: string } & Record<string, unknown>;
   const { data, error } = await supabase.from(table).update(rest).eq("id", id).select();
   if (error) throw error;
   return data?.[0] ?? null;

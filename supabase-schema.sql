@@ -283,11 +283,11 @@ declare
   v_user public.app_users%rowtype;
   v_token text;
 begin
-  select *
+  select u.*
   into v_user
-  from public.app_users
-  where username = lower(trim(p_username))
-    and is_active = true
+  from public.app_users u
+  where u.username = lower(trim(p_username))
+    and u.is_active = true
   limit 1;
 
   if not found then
@@ -792,11 +792,13 @@ using (public.app_is_admin())
 with check (public.app_is_admin());
 
 -- mobile orders
+drop policy if exists "mobile_orders_read_authenticated" on public.mobile_orders;
 create policy "mobile_orders_read_authenticated"
 on public.mobile_orders
 for select
 using (public.app_is_authenticated());
 
+drop policy if exists "mobile_orders_write_authenticated" on public.mobile_orders;
 create policy "mobile_orders_write_authenticated"
 on public.mobile_orders
 for all

@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { History, Minus, PencilLine, Plus, Search, Trash2, TriangleAlert } from "lucide-react";
+import { History, Minus, PackageCheck, PencilLine, Plus, Search, Trash2, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { MobileOrdersSheet } from "@/components/kasir/MobileOrdersSheet";
 import { MenuOrderDialog } from "@/components/kasir/MenuOrderDialog";
 import { ReceiptDialog } from "@/components/kasir/ReceiptDialog";
 import { SalesHistorySheet } from "@/components/kasir/SalesHistorySheet";
@@ -23,6 +24,15 @@ import {
 import { db, type Sale } from "@/lib/db";
 import { formatNumber, formatRp, parseLocaleNumber } from "@/lib/format";
 import { computeCost } from "@/lib/menus";
+import {
+  fetchMobileOrders,
+  getMobileOrderStatusClassName,
+  getMobileOrderStatusLabel,
+  isMobileOrderActive,
+  updateMobileOrderStatus,
+  type MobileOrder,
+  type MobileOrderStatus,
+} from "@/lib/mobileOrdersClient";
 import { createSale, materialUsage, type CartLine } from "@/lib/sales";
 import { seedIfEmpty } from "@/lib/seed";
 
@@ -81,6 +91,11 @@ function KasirView() {
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [mobileOrdersOpen, setMobileOrdersOpen] = useState(false);
+  const [mobileOrders, setMobileOrders] = useState<MobileOrder[]>([]);
+  const [mobileOrdersLoading, setMobileOrdersLoading] = useState(false);
+  const [mobileOrdersError, setMobileOrdersError] = useState<string | null>(null);
+  const [mobileOrderBusyId, setMobileOrderBusyId] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<Sale | null>(null);
   const [menuDialogOpen, setMenuDialogOpen] = useState(false);
   const [selectedMenu, setSelectedMenu] = useState<(typeof menus)[number] | null>(null);
@@ -97,6 +112,73 @@ function KasirView() {
 
   const menuById = useMemo(() => new Map(menus.map((m) => [m.id, m])), [menus]);
   const materialById = useMemo(() => new Map(materials.map((m) => [m.id, m])), [materials]);
+
+  const activeMobileOrders = useMemo(
+    () => mobileOrders.filter((order) => isMobileOrderActive(order.status)),
+    [mobileOrders],
+  );
+  const newMobileOrderCount = useMemo(
+    () => mobileOrders.filter((order) => order.status === "new").length,
+    [mobileOrders],
+  );
+
+  async function refreshMobileOrders() {
+    setMobileOrdersLoading(true);
+    try {
+      const rows = await fetchMobileOrders(40);
+      setMobileOrders(rows);
+      setMobileOrdersError(null);
+    } catch (error) {
+      const message = error instanceof Error && error.message ? error.message : "Gagal memuat pesanan mobile";
+      setMobileOrdersError(message);
+    } finally {
+      setMobileOrdersLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setMobileOrdersLoading(true);
+      try {
+        const rows = await fetchMobileOrders(40);
+        if (cancelled) return;
+        setMobileOrders(rows);
+        setMobileOrdersError(null);
+      } catch (error) {
+        if (cancelled) return;
+        const message = error instanceof Error && error.message ? error.message : "Gagal memuat pesanan mobile";
+        setMobileOrdersError(message);
+      } finally {
+        if (!cancelled) setMobileOrdersLoading(false);
+      }
+    }
+
+    void load();
+    const timer = window.setInterval(() => {
+      void load();
+    }, 20000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  async function changeMobileOrderStatus(orderId: string, status: MobileOrderStatus) {
+    setMobileOrderBusyId(orderId);
+    try {
+      await updateMobileOrderStatus(orderId, status);
+      await refreshMobileOrders();
+      toast.success("Status pesanan mobile diperbarui");
+    } catch (error) {
+      const message = error instanceof Error && error.message ? error.message : "Gagal memperbarui status pesanan";
+      toast.error(message);
+    } finally {
+      setMobileOrderBusyId(null);
+    }
+  }
 
   const visibleMenus = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -227,11 +309,80 @@ function KasirView() {
       title="Kasir"
       description="Pilih menu, lalu simpan transaksi. Stok bahan otomatis terpotong sesuai resep."
       actions={
-        <Button variant="outline" onClick={() => setHistoryOpen(true)}>
-          <History className="size-4" /> Riwayat
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={() => setMobileOrdersOpen(true)} className="relative">
+            <PackageCheck className="size-4" /> Pesanan Mobile
+            {newMobileOrderCount > 0 ? (
+              <Badge className="absolute -right-2 -top-2 h-5 min-w-5 rounded-full px-1.5 text-[10px]">
+                {newMobileOrderCount > 99 ? "99+" : newMobileOrderCount}
+              </Badge>
+            ) : null}
+          </Button>
+          <Button variant="outline" onClick={() => setHistoryOpen(true)}>
+            <History className="size-4" /> Riwayat
+          </Button>
+        </div>
+      }
+      notificationCount={newMobileOrderCount}
+      notificationContent={
+        activeMobileOrders.length > 0 ? (
+          <div className="space-y-2 px-1 py-1">
+            {activeMobileOrders.slice(0, 5).map((order) => (
+              <button
+                key={order.id}
+                type="button"
+                onClick={() => setMobileOrdersOpen(true)}
+                className="flex w-full items-start justify-between rounded-xl border border-border px-3 py-2 text-left transition-colors hover:bg-secondary"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{order.orderNumber}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {order.customerName ?? "Tanpa nama"} • {order.items.length} item
+                  </p>
+                </div>
+                <Badge className={getMobileOrderStatusClassName(order.status)}>
+                  {getMobileOrderStatusLabel(order.status)}
+                </Badge>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="px-3 py-4 text-sm text-muted-foreground">Belum ada pesanan mobile aktif.</div>
+        )
+      }
+      notificationFooter={
+        <Button className="w-full" size="sm" onClick={() => setMobileOrdersOpen(true)}>
+          Buka antrean pesanan
         </Button>
       }
     >
+      <div className="mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Antrean dari Mobile App</p>
+            <p className="text-xs text-muted-foreground">
+              Order baru akan muncul otomatis. Klik untuk terima, siapkan, atau selesaikan.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="border-primary/30 bg-background text-primary">
+              {newMobileOrderCount} baru
+            </Badge>
+            <Badge variant="outline" className="border-border bg-background">
+              {activeMobileOrders.length} aktif
+            </Badge>
+            <Button variant="outline" size="sm" onClick={() => void refreshMobileOrders()}>
+              Refresh
+            </Button>
+          </div>
+        </div>
+        {mobileOrdersError ? (
+          <div className="mt-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {mobileOrdersError}
+          </div>
+        ) : null}
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
         {/* Daftar menu */}
         <div>
@@ -468,6 +619,16 @@ function KasirView() {
       </div>
 
       <SalesHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} canVoid={role === "admin"} />
+      <MobileOrdersSheet
+        open={mobileOrdersOpen}
+        onOpenChange={setMobileOrdersOpen}
+        orders={mobileOrders}
+        loading={mobileOrdersLoading}
+        error={mobileOrdersError}
+        onRefresh={() => void refreshMobileOrders()}
+        onUpdateStatus={changeMobileOrderStatus}
+        busyOrderId={mobileOrderBusyId}
+      />
       <MenuOrderDialog
         open={menuDialogOpen}
         menu={selectedMenu}
