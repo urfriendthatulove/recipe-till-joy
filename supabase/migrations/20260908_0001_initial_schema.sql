@@ -402,9 +402,9 @@ begin
     'QNS-' || to_char(v_now, 'YYYYMMDD') || '-' ||
     lpad((
       select (count(*) + 1)::text
-      from public.sales
-      where created_at >= date_trunc('day', v_now)
-        and created_at < date_trunc('day', v_now) + interval '1 day'
+      from public.sales s
+      where s.created_at >= date_trunc('day', v_now)
+        and s.created_at < date_trunc('day', v_now) + interval '1 day'
     ), 4, '0');
 
   for v_line in
@@ -412,9 +412,9 @@ begin
   loop
     select *
     into v_menu
-    from public.menus
-    where id = (v_line ->> 'menu_item_id')::uuid
-      and is_active = true
+    from public.menus m
+    where m.id = (v_line ->> 'menu_item_id')::uuid
+      and m.is_active = true
     limit 1;
 
     if not found then
@@ -479,8 +479,8 @@ begin
   loop
     select *
     into v_mat
-    from public.materials
-    where id = v_key::uuid
+    from public.materials m
+    where m.id = v_key::uuid
     for update;
 
     if not found then
@@ -493,10 +493,10 @@ begin
 
     v_after := v_mat.current_stock - v_need_qty;
 
-    update public.materials
+    update public.materials m
     set current_stock = v_after,
         updated_at = v_now
-    where id = v_mat.id;
+    where m.id = v_mat.id;
 
     insert into public.stock_movements (
       id,
