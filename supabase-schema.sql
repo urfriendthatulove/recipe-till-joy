@@ -198,7 +198,7 @@ returns text
 language sql
 immutable
 as $$
-  select encode(digest(coalesce(p_token, ''), 'sha256'), 'hex');
+  select encode(extensions.digest(coalesce(p_token, ''), 'sha256'), 'hex');
 $$;
 
 create or replace function public.app_request_session_token()
