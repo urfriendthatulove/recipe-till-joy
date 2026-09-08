@@ -121,6 +121,12 @@ function getAuthorizationToken(request: Request) {
   return header.replace(/^Bearer\s+/i, "").trim();
 }
 
+function maskSecret(value: string) {
+  if (!value) return "";
+  if (value.length <= 8) return "*".repeat(value.length);
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
+}
+
 function bytesToHex(bytes: Uint8Array) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -400,19 +406,35 @@ async function updateOrder(env: unknown, orderId: string, payload: z.infer<typeo
 }
 
 async function verifyApiKey(request: Request, env: unknown) {
+  const header = request.headers.get("authorization") ?? "";
   const token = getAuthorizationToken(request);
+
+  const expectedKeyHash = getEnvValue(env, ["POS_API_KEY_HASH", "POS_MOBILE_API_KEY_HASH"]);
+  const expectedKey = getEnvValue(env, ["POS_API_KEY", "POS_MOBILE_API_KEY"]);
+  const salt = getEnvValue(env, ["POS_API_KEY_SALT", "POS_MOBILE_API_KEY_SALT"]);
+
+  console.log("AUTH_HEADER", header);
+  console.log("TOKEN_RECEIVED", token);
+  console.log("EXPECTED_TOKEN", expectedKey || expectedKeyHash);
+  console.log("HAS_POS_API_KEY", Boolean(expectedKey));
+  console.log("HAS_POS_API_KEY_HASH", Boolean(expectedKeyHash));
+  console.log("HAS_POS_API_KEY_SALT", Boolean(salt));
+
   if (!token) {
     return false;
   }
 
-  const expectedKeyHash = getEnvValue(env, ["POS_API_KEY_HASH", "POS_MOBILE_API_KEY_HASH"]);
   if (expectedKeyHash) {
-    const salt = getEnvValue(env, ["POS_API_KEY_SALT", "POS_MOBILE_API_KEY_SALT"]);
     const candidateHash = await sha256Hex(salt ? `${salt}:${token}` : token);
+    console.log("AUTH_MODE", "hash");
+    console.log("CANDIDATE_HASH", candidateHash);
+    console.log("EXPECTED_HASH", expectedKeyHash.toLowerCase());
+    console.log("CANDIDATE_HASH_MASKED", maskSecret(candidateHash));
+    console.log("EXPECTED_HASH_MASKED", maskSecret(expectedKeyHash.toLowerCase()));
     return constantTimeEqual(candidateHash, expectedKeyHash.toLowerCase());
   }
 
-  const expectedKey = getEnvValue(env, ["POS_API_KEY", "POS_MOBILE_API_KEY"]);
+  console.log("AUTH_MODE", "plain");
   if (!expectedKey) {
     throw new Error("POS_API_KEY_HASH atau POS_API_KEY belum diset di backend POS");
   }
