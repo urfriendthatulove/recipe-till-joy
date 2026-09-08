@@ -121,6 +121,25 @@ function getAuthorizationToken(request: Request) {
   return header.replace(/^Bearer\s+/i, "").trim();
 }
 
+function getRequestApiToken(request: Request) {
+  const bearerToken = getAuthorizationToken(request);
+  if (bearerToken) {
+    return { token: bearerToken, source: "authorization" as const };
+  }
+
+  const xApiKey = request.headers.get("x-api-key")?.trim() ?? "";
+  if (xApiKey) {
+    return { token: xApiKey, source: "x-api-key" as const };
+  }
+
+  const xPosApiKey = request.headers.get("x-pos-api-key")?.trim() ?? "";
+  if (xPosApiKey) {
+    return { token: xPosApiKey, source: "x-pos-api-key" as const };
+  }
+
+  return { token: "", source: "none" as const };
+}
+
 function maskSecret(value: string) {
   if (!value) return "";
   if (value.length <= 8) return "*".repeat(value.length);
@@ -407,13 +426,14 @@ async function updateOrder(env: unknown, orderId: string, payload: z.infer<typeo
 
 async function verifyApiKey(request: Request, env: unknown) {
   const header = request.headers.get("authorization") ?? "";
-  const token = getAuthorizationToken(request);
+  const { token, source } = getRequestApiToken(request);
 
   const expectedKeyHash = getEnvValue(env, ["POS_API_KEY_HASH", "POS_MOBILE_API_KEY_HASH"]);
   const expectedKey = getEnvValue(env, ["POS_API_KEY", "POS_MOBILE_API_KEY"]);
   const salt = getEnvValue(env, ["POS_API_KEY_SALT", "POS_MOBILE_API_KEY_SALT"]);
 
   console.log("AUTH_HEADER", header);
+  console.log("TOKEN_SOURCE", source);
   console.log("TOKEN_RECEIVED", token);
   console.log("EXPECTED_TOKEN", expectedKey || expectedKeyHash);
   console.log("HAS_POS_API_KEY", Boolean(expectedKey));
