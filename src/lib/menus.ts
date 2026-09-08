@@ -1,6 +1,7 @@
 import { db, nowISO, uid, type MenuItem, type RawMaterial, type RecipeItem } from "./db";
 import { assertPermission } from "./auth";
 import { isSupabaseEnabled, supabase } from "./supabase";
+import { seedIfEmpty } from "./seed";
 
 export interface MenuInput {
   code?: string;
@@ -189,6 +190,7 @@ export async function saveRecipe(menuItemId: string, rows: { materialId: string;
     }));
 
     await db.recipes.bulkPut(items);
+    await seedIfEmpty();
     return;
   }
 
