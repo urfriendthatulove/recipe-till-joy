@@ -2,6 +2,8 @@ import { supabase } from "./supabase";
 
 export type MobileOrderStatus = "new" | "accepted" | "preparing" | "ready" | "completed" | "cancelled";
 
+export type MobileFulfilmentMode = "delivery" | "pickup" | "dine_in" | "pre_order";
+
 export interface MobileOrderItem {
   id: string;
   menuItemId: string;
@@ -24,9 +26,14 @@ export interface MobileOrder {
   customerPhone?: string;
   tableName?: string;
   note?: string;
+  storeId?: string;
+  fulfilmentMode?: MobileFulfilmentMode;
+  paymentMethod?: string;
+  voucherCode?: string;
   items: MobileOrderItem[];
   subtotal: number;
   discount: number;
+  deliveryFee: number;
   total: number;
   createdAt: string;
   updatedAt: string;
@@ -82,9 +89,14 @@ function normalizeOrderRow(row: any): MobileOrder {
     customerPhone: row.customer_phone ?? row.customerPhone ?? undefined,
     tableName: row.table_name ?? row.tableName ?? undefined,
     note: row.note ?? undefined,
+    storeId: row.store_id ?? row.storeId ?? undefined,
+    fulfilmentMode: row.fulfilment_mode ?? row.fulfilmentMode ?? undefined,
+    paymentMethod: row.payment_method ?? row.paymentMethod ?? undefined,
+    voucherCode: row.voucher_code ?? row.voucherCode ?? undefined,
     items: Array.isArray(row.items) ? row.items.map(normalizeOrderItem) : [],
     subtotal: normalizeNumber(row.subtotal),
     discount: normalizeNumber(row.discount),
+    deliveryFee: normalizeNumber(row.delivery_fee ?? row.deliveryFee),
     total: normalizeNumber(row.total),
     createdAt: String(row.created_at ?? row.createdAt ?? new Date().toISOString()),
     updatedAt: String(row.updated_at ?? row.updatedAt ?? new Date().toISOString()),
@@ -92,6 +104,18 @@ function normalizeOrderRow(row: any): MobileOrder {
     completedAt: row.completed_at ?? row.completedAt ?? undefined,
     cancelledAt: row.cancelled_at ?? row.cancelledAt ?? undefined,
   };
+}
+
+const FULFILMENT_MODE_LABELS: Record<MobileFulfilmentMode, string> = {
+  delivery: "Delivery",
+  pickup: "Ambil sendiri",
+  dine_in: "Makan di tempat",
+  pre_order: "Jadwalkan",
+};
+
+export function getMobileFulfilmentModeLabel(mode?: MobileFulfilmentMode) {
+  if (!mode) return undefined;
+  return FULFILMENT_MODE_LABELS[mode] ?? mode;
 }
 
 export function getMobileOrderStatusLabel(status: MobileOrderStatus) {

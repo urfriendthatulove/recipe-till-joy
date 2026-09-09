@@ -14,6 +14,10 @@ const orderStatusValues = [
 
 type MobileOrderStatus = (typeof orderStatusValues)[number];
 
+const fulfilmentModeValues = ["delivery", "pickup", "dine_in", "pre_order"] as const;
+
+type MobileFulfilmentMode = (typeof fulfilmentModeValues)[number];
+
 type MobileOrderItem = {
   id: string;
   menuItemId: string;
@@ -36,9 +40,14 @@ type MobileOrderRow = {
   customer_phone: string | null;
   table_name: string | null;
   note: string | null;
+  store_id: string | null;
+  fulfilment_mode: MobileFulfilmentMode | null;
+  payment_method: string | null;
+  voucher_code: string | null;
   items: MobileOrderItem[] | unknown;
   subtotal: number | string;
   discount: number | string;
+  delivery_fee: number | string;
   total: number | string;
   created_at: string;
   updated_at: string;
@@ -60,7 +69,12 @@ const createOrderSchema = z.object({
   customerPhone: z.string().trim().min(1).max(40).optional(),
   tableName: z.string().trim().min(1).max(40).optional(),
   note: z.string().trim().max(500).optional(),
+  storeId: z.string().trim().min(1).max(120).optional(),
+  fulfilmentMode: z.enum(fulfilmentModeValues).optional(),
+  paymentMethod: z.string().trim().min(1).max(60).optional(),
+  voucherCode: z.string().trim().min(1).max(60).optional(),
   discount: z.number().min(0).optional(),
+  deliveryFee: z.number().min(0).optional(),
   items: z.array(orderItemSchema).min(1),
 });
 
@@ -194,9 +208,14 @@ function normalizeOrderRow(row: MobileOrderRow) {
     customerPhone: row.customer_phone ?? undefined,
     tableName: row.table_name ?? undefined,
     note: row.note ?? undefined,
+    storeId: row.store_id ?? undefined,
+    fulfilmentMode: row.fulfilment_mode ?? undefined,
+    paymentMethod: row.payment_method ?? undefined,
+    voucherCode: row.voucher_code ?? undefined,
     items,
     subtotal: normalizeNumber(row.subtotal),
     discount: normalizeNumber(row.discount),
+    deliveryFee: normalizeNumber(row.delivery_fee),
     total: normalizeNumber(row.total),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -330,7 +349,8 @@ async function createOrder(env: unknown, payload: z.input<typeof createOrderSche
 
   const subtotal = items.reduce((sum, item) => sum + item.lineTotal, 0);
   const discount = Math.min(Math.max(payload.discount ?? 0, 0), subtotal);
-  const total = subtotal - discount;
+  const deliveryFee = Math.max(payload.deliveryFee ?? 0, 0);
+  const total = subtotal - discount + deliveryFee;
 
   const row = {
     order_number: orderNumber,
@@ -341,9 +361,14 @@ async function createOrder(env: unknown, payload: z.input<typeof createOrderSche
     customer_phone: payload.customerPhone ?? null,
     table_name: payload.tableName ?? null,
     note: payload.note ?? null,
+    store_id: payload.storeId ?? null,
+    fulfilment_mode: payload.fulfilmentMode ?? null,
+    payment_method: payload.paymentMethod ?? null,
+    voucher_code: payload.voucherCode ?? null,
     items,
     subtotal,
     discount,
+    delivery_fee: deliveryFee,
     total,
     created_at: ts,
     updated_at: ts,

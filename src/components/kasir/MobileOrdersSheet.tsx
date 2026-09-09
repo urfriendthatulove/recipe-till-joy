@@ -1,4 +1,4 @@
-import { Clock3, Phone, RefreshCw, Table2, PackageCheck, PackageX } from "lucide-react";
+import { Clock3, CreditCard, Phone, RefreshCw, Table2, Truck } from "lucide-react";
 import { useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatNumber, formatRp, formatTanggalJam } from "@/lib/format";
 import {
+  getMobileFulfilmentModeLabel,
   getMobileOrderStatusClassName,
   getMobileOrderStatusLabel,
   isMobileOrderActive,
@@ -139,6 +140,12 @@ export function MobileOrdersSheet({
                     {order.discount > 0 ? (
                       <p className="text-xs text-muted-foreground">Diskon {formatRp(order.discount)}</p>
                     ) : null}
+                    {order.deliveryFee > 0 ? (
+                      <p className="text-xs text-muted-foreground">Ongkir {formatRp(order.deliveryFee)}</p>
+                    ) : null}
+                    {order.voucherCode ? (
+                      <p className="text-xs text-muted-foreground">Voucher {order.voucherCode}</p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -146,6 +153,11 @@ export function MobileOrdersSheet({
                   <InfoLine icon={<Phone className="size-3.5" />} text={order.customerPhone ?? "-"} />
                   <InfoLine icon={<Table2 className="size-3.5" />} text={order.tableName ?? "Dine-in/Takeaway"} />
                   <InfoLine icon={<Clock3 className="size-3.5" />} text={order.customerName ?? "Tanpa nama"} />
+                  <InfoLine
+                    icon={<Truck className="size-3.5" />}
+                    text={getMobileFulfilmentModeLabel(order.fulfilmentMode) ?? "-"}
+                  />
+                  <InfoLine icon={<CreditCard className="size-3.5" />} text={order.paymentMethod ?? "-"} />
                 </div>
 
                 {order.note ? (
